@@ -1,0 +1,35 @@
+{
+    "industry": {
+        "industry_name": "The Industry that the company posted the listing",
+        "NACE_industry_name":"Choose from the NACE (Nomenclature of Economic Activities) V2 that fits the industry of the job listing"
+        },
+    "job":{
+        "job_title": "The title of the job as mentioned in the job listing",
+        "job_seniority": "Internship, Entry, Junior, Mid, or Senior level (if mentioned, eitherwise Mid level is the default value)",
+        "minimum_level_of_education": "Integer. The minimum level of education required. Not the level that will be considered as an advantage - based on ISCED (2011)",
+        "employment_type": "[optional] Full-time, Part-time, or other. Null if not available in job posting.",
+        "employment_model": "[optional] On Site, Remote, Hybrid, or any other kind of employment model. Null if not available in job posting."
+        },
+    "skills": [{
+        "skills_category": "Either Soft or Hard Skill.",
+        "skills_name": "Name of each individual skill mentioned in the job listing. Mention only the name individually.",
+        "skills_type": "Technical skills, Programming Languages, Software, Professional or Driver's Licence, Personality Trait and others should be included here. Each skill must have an individual record in the list"
+        }],
+    "certification_degree": [{
+        "certification_name": "Name of each individual professional certification (PMP, LCCI, etc.) Mention only the professional certification name individually."
+        }],
+    "academic_degree": [{
+            "academic_degree_name": "Name of each individual academic degree (e.g. Bachelor’s, Master's. PhD). Mention only the name individually.",
+            "academic_degree_field": "The related fields of the required academic degree. Each field of study must have an individual record in the list."
+        }],
+    "experience": {
+        "experience_required": "The minimum years of experience required as a boolean value - if experience is required or not",
+        "years_of_experience": "The minimum years of experience required as an integer - if mentioned"
+        },
+        "benefits": [{
+            "benefit_name": "The description of the benefit mentioned in the job listing. Keep the description *very* brief."
+        }],
+    "responsibilities": [{
+        "responsibility_name": "The description of the responsibility mentioned in the job listing. Keep the description *very* brief."
+        }]
+}

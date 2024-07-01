@@ -1,0 +1,13 @@
+{
+
+    "experience": {
+        "experience_required": "The minimum years of experience required as a boolean value - if experience is required or not",
+        "years_of_experience": "The minimum years of experience required as an integer - if mentioned"
+        },
+    "benefits": [{
+            "benefit_name": "The description of the benefit mentioned in the job listing. Keep the description *VERY* *VERY* brief and concise."
+        }],
+    "responsibilities": [{
+        "responsibility_name": "The description of the responsibility mentioned in the job listing. Keep the description *VERY* *VERY* brief and concise."
+        }]
+}

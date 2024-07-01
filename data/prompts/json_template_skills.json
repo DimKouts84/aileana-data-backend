@@ -1,0 +1,14 @@
+{
+    "skills": [{
+        "skills_category": "Either Soft or Hard Skill.",
+        "skills_name": "Name of each individual skill mentioned in the job listing. Mention only the name individually.",
+        "skills_type": "Technical skills, Programming Languages, Software, Professional or Driver's Licence, Personality Trait and others should be included here. Each skill must have an individual record in the list"
+        }],
+    "certification_degree": [{
+        "certification_name": "Name of each individual professional certification (PMP, LCCI, etc.) Mention only the professional certification name individually."
+        }],
+    "academic_degree": [{
+            "academic_degree_name": "Name of each individual academic degree (e.g. Bachelor’s, Master's. PhD). Mention only the name individually.",
+            "academic_degree_field": "The related fields of the required academic degree. Each field of study must have an individual record in the list."
+        }]
+}

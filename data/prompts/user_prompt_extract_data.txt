@@ -1,0 +1,13 @@
+I will provide you with a job listing and I want you to extract all the data and structure them following the instructions of the provided JSON format.
+
+Steps to follow:
+1 Read the job listing
+2 Think step by step and do the following
+3 Extract the requested data
+6 Review your findings and make any necessary corrections
+7 Return the JSON file based on the provided format, that follows.
+
+Instructions:
+*Always* follow the *standards* (e.g. NACE, ISCO-88, ISCED (2011)) when requested to complete the JSON file.
+You *must* return ONLY a **JSON file** based on the JSON_TEMPLATE provided next.
+Please follow the instructions accurately.
