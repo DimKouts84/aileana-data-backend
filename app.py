@@ -1,3 +1,11 @@
+############### Project still in development ###############
+# Current functionality implemented:
+# 1 web scrapping for job data
+# 2 Translating using LLM all data
+# 3 Importing into an SQL DB
+# 4 Parsing unstructured data using an LLM
+# 5 Now working on importing structured data into a Graph Knowledge database (Neo4J)
+
 # Imports
 import os
 
