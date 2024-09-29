@@ -29,6 +29,6 @@ insert_data_to_db(translated_listings)
 get_jobs_without_description_scrape_and_translate()
 
 
-# # Get all the jobs that are not imported to the Graph DB, process and import them to the Graph DB
-# process_jobs_and_import_to_graphDB(driver, country="Cyprus")
+# Get all the jobs that are not imported to the Graph DB, process and import them to the Graph DB
+process_jobs_and_import_to_graphDB(driver, country="Cyprus")
 
