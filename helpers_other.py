@@ -103,6 +103,32 @@ def nuke_neo4j_db(session):
     print("Neo4j database has been nuked.")
     return
 
+
+# A function to clear the job descriptions that start with a specific text, that usually comes from a LLM output. E.g. "Here is the translation:"
+no_relevant_text = "Here is the translation:"
+def get_jobdescriptions_with_no_relevant_text_and_clean():    
+    # Query all job descriptions from the database
+    cur, conn = connect_pg_conn(host, database, username, password)
+    cur.execute("""
+        SELECT job_description, reference FROM job_listings
+    """)
+    job_descriptions = [row for row in cur.fetchall()][:1]
+    print(job_descriptions)
+
+    for job_description in job_descriptions[0]:
+        # Check if the description starts with "no_relevant_text"
+        if job_description.startswith(no_relevant_text):
+            # Remove the line "no_relevant_text"
+            new_description = job_description.replace(no_relevant_text, "")
+            print(f" New cleaned job description -->\n{new_description}\n Reference: {job_descriptions[1]}")
+            # Update the description in the database
+            # update_job_description_data(new_description, job_descriptions[1])
+    # Commit the changes
+    conn.commit()
+    # Close the connection
+    cur.close()
+    conn.close()
+
 # # Execute the clear_database function within a session
 # with driver.session() as session:
 #     clear_database(session)
