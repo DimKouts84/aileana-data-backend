@@ -43,13 +43,17 @@ neo4j_password = os.getenv("NEO4J_PASSWORD")
 # Connect to the neo4j database
 driver = GraphDatabase.driver(neo4j_url, auth=(neo4j_user, neo4j_password))
 
-# Available Cloud (GROQ) and Local (Ollama) open-source and keys
+#### Available Cloud (GROQ) setup and models
 Groqllm = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 llama8B, llama70B, mixtral_8x7b, llama_31_70b, llama_31_8b = "llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"
 
+#### Available Local (Ollama) request URLs and models
 ollama_embed_url = os.getenv("OLLAMA_EMBEDD_URL")
 bge_m3, nomic_embed_text = 'bge-m3', 'nomic-embed-text'
 
+ollama_completions_url = os.getenv("OLLAMA_COMPLETIONS_URL")
+ollama_chat_completions_url = os.getenv("OLLAMA_CHAT_COMPLETIONS_URL")
+o_llama_31_8b_q4, o_llama_31_8b_fp16, o_llama_32_3B, o_phi_35_8B = "llama3.1:8b","llama3.1:8b-instruct-fp16","llama3.2:3b-instruct-fp16", "phi3.5:3.8b-mini-instruct-q8_0"
 
 # Confifgure the logger and the timestamp
 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -111,7 +115,7 @@ class JobListing(BaseModel):
 def validate_job_listing(data: dict) -> bool:
     try:
         job_listing = JobListing(**data)
-        print("Validation successful!")
+        # print("Validation successful!")
         return True
     except ValidationError as e:
         print("Validation failed!")
@@ -119,14 +123,15 @@ def validate_job_listing(data: dict) -> bool:
         return False
 
 
-#  ----------------- HELPER FUNTIONS ----------------- #
 # Function to open the system file. Files likes user or system prompts and instructions.
 def open_prompt_files(file):
     with open(file, 'r', encoding='utf-8') as f:
         promt_data = f.read()
     return promt_data
 
-# Function to call Groq LLM in JSON mode
+""" ----------------- Helper Functions ----------------- """
+###  -----------------  API LLM Requests ----------------- ###
+# Function to call Groq API LLms in JSON mode
 def call_groq_JSON(model, system_prompt, user_prompt_for_parsing):
     client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
     chat_completion = Groqllm.chat.completions.create(
@@ -146,6 +151,37 @@ def call_groq_JSON(model, system_prompt, user_prompt_for_parsing):
     # print(answer_text) #for debugging
     return answer_text
 
+# Function to call Local LLM using the Ollama API in JSON mode
+def call_ollama_JSON(model, system_prompt, user_prompt_for_parsing):
+    url = ollama_chat_completions_url
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": f"{system_prompt}"
+            },
+            {
+                "role": "user", 
+                "content": f"{user_prompt_for_parsing}, {llm_instructions}"
+            }
+        ],
+        "temperature": 0,  
+        "format": "json",
+        "stream": False
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        # print(f"Response text: \n{response.text}\n\n")
+        response.raise_for_status()  # Raise an error for bad status codes
+        return response.json()['message']['content']
+    except requests.RequestException as e:
+        print(f"Error: {e} response from Ollama API.")
+        return f"Error: {e} response from Ollama API."
+
 # A function to validate the job listing data
 def validate_job_listing(data: dict) -> bool:
     try:
@@ -157,11 +193,11 @@ def validate_job_listing(data: dict) -> bool:
         logging.error(f"{timestamp} | Validation failed for job: {job_listing}")
         return False
 
-
-#  -----------------  System & User Prompts for Data Extraction and Structuring ----------------- #
+###  -----------------  System & User Prompts for Data Extraction and Structuring ----------------- ###
 ### A function to extract data from the job listing for for each category/node ###
 def extract_data(model, system_prompt, user_prompt):
-    extracted_data = call_groq_JSON(model, system_prompt, user_prompt)
+    # extracted_data = call_groq_JSON(model, system_prompt, user_prompt)
+    extracted_data = call_ollama_JSON(model, system_prompt, user_prompt)
     return extracted_data
 
 ### Loop for all categories/nodes of data in a job listing text. The extracted data are combined in a JSON file. ###
@@ -197,6 +233,7 @@ def extract_data_in_batches(llm_to_be_used, system_prompt, job_listing_not_impor
     raise ValueError("Max retries reached. Job listing extraction failed validation.")
 
 
+""" ----------------- Prompting Variables ----------------- """
 ########################    The PROMPTS for parsing the job listing text   ########################
 parsed_industry_data = (f" *** INSTRUCTIONS: ***\n" + open_prompt_files(r"data\prompts\user_prompt_extract_data.txt") + "\n"
     + f" *** The JSON template is the following *** :\n" + open_prompt_files(r"data\prompts\json_template_job_industry.json") + "\n"
@@ -231,6 +268,7 @@ llm_instructions = (f" *** INSTRUCTIONS: ***\n" "Think step by step how you woul
 # Extraction of data in batches, to increase the accuracy of the extracted data:
 prompts = [parsed_industry_data, parsed_main_data, parsed_skills_and_qualifications, parsed_experience_and_responsibilities]
 
+""" ----------------- Job Data Processing and importing to Graph Database ----------------- """
 def process_jobs_and_import_to_graphDB(driver, country):
     # Available open-source models for Groq LLM
     llama8B, llama70B, llama_31_8b, llama_31_70b = "llama3-8b-8192", "llama3-70b-8192", "llama-3.1-8b-instant", "llama-3.1-70b-versatile"
@@ -246,7 +284,10 @@ def process_jobs_and_import_to_graphDB(driver, country):
         for job_data in all_job_not_into_graphDB:
             print(f"Job with {job_data['job_reference']}")
             retry_count, max_retries = 0, 5
-            models = [llama70B, llama_31_70b, llama_31_8b]
+            ## Groq Models
+            # models = [o_llama_31_8b_q4, llama_31_70b, llama_31_8b]
+            ## Ollama Models
+            models = [o_llama_31_8b_q4, o_llama_31_8b_fp16, o_llama_32_3B, o_phi_35_8B]
             model_index = 0
             
             while model_index < len(models):
@@ -346,4 +387,23 @@ def add_embedding_to_PG_job(embedding, job_reference):
         conn.commit()
         print(f"Embedding added to PostgreSQL column with reference {job_reference}.")
 
-            
+# """ ----------------- Testing ----------------- """
+# # Test the extraction of data from a job listing - for debugging purposes
+# def test_extraction_of_data_from_job_listing():
+#     # The system prompt to be used for the LLM model
+#     extract_system_prompt = open_prompt_files("data/prompts/system_prompt_extract_data.txt")
+    
+#     # Get all the jobs that are not imported to the Graph DB
+#     all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
+    
+#     # Extract data from a single job listing
+#     job_data = all_job_not_into_graphDB[8759]
+#     print(f"Job --> {job_data['job_title']}\n{job_data['job_description']}\n\n\n")
+#     all_job_json = extract_data_in_batches(o_llama_31_8b_fp16, extract_system_prompt, job_data, max_retries=5)
+#     # industry_json = extract_data(o_llama_31_8b_fp16, extract_system_prompt, parsed_industry_data+job_data['job_description'])
+#     # save the extracted data to a JSON file
+#     with open(f'extracted_job_data_for_test.json', 'w') as f:
+#         json.dump(all_job_json, f)
+#     return all_job_json
+
+# test_extraction_of_data_from_job_listing()
