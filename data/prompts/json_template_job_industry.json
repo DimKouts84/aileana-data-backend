@@ -1,6 +1,7 @@
 {
-    "industry": {
-        "industry_name": "Read the listing and use your judgment to determine the industry of the job listing. Define the name with your own knowledge.",
-        "NACE_industry_name":"Choose from the NACE (Nomenclature of Economic Activities) V2 that fits the industry of the job listing"
+    "industry": 
+        {
+        "industry_name": "Determine the industry(ies) of the company offering the job. Use your judgment and knowledge.",
+        "NACE_industry_name":"A NACE Standards Clasicifation title from the provided list"
         }
 }

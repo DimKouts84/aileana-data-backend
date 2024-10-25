@@ -16,19 +16,19 @@ url = os.environ['SCRAPE_URL']
 
 #  -----------------  Main Code  ----------------- #
 
-# # Scrape the URL for new jobs
-# job_listings_to_translate = scrape_for_new_jobs(url)
+# Scrape the URL for new jobs
+job_listings_to_translate = scrape_for_new_jobs(url)
 
-# # # Translate the Job titles from Greek to English and recreate the JSON file
-# translated_listings = translate_job_listings(job_listings_to_translate)
+# # Translate the Job titles from Greek to English and recreate the JSON file
+translated_listings = translate_job_listings(job_listings_to_translate)
     
-# # Import the JSON into PGSQL database
-# insert_data_to_db(translated_listings)
+# Import the JSON into PGSQL database
+insert_data_to_db(translated_listings)
 
-# # Scrape the description of new jobs, translate if in Greek and update the PostgreSQL DB
-# get_jobs_without_description_scrape_and_translate()
+# Scrape the description of new jobs, translate if in Greek and update the PostgreSQL DB
+get_jobs_without_description_scrape_and_translate()
 
 
-# Get all the jobs that are not imported to the Graph DB, process and import them to the Graph DB
-process_jobs_and_import_to_graphDB(driver, country="Cyprus")
+# # Get all the jobs that are not imported to the Graph DB, process and import them to the Graph DB
+# process_jobs_and_import_to_graphDB(driver, country="Cyprus")
 

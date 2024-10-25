@@ -1,0 +1,48 @@
+
+{ "industry_examples" : 
+[
+    {"example1":
+        [
+            {
+            "job_description_text": "Medochemie Ltd is an International Pharmaceutical Company with its headquarters in Cyprus. Medochemie manufactures a wide range of products categorized into more than 10 therapeutic categories, holds 4355 marketing authorizations, and operates in more than 107 countries worldwide. Our 13 separate production facilities are designed to fully comply with the current Good Manufacturing Practice (cGMP) of the European Union."
+            },
+            {
+            "industry": {
+                "industry_name": "Pharmaceuticals",
+                "NACE_industry_name":"Manufacturing"
+                }
+            }
+        ]
+            },
+    {
+    "example2":
+        [
+            {
+        "job_description_text": "ISX Financial EU Plc is an authorised Electronic Money Institution licensed by the Central Bank of Cyprus. The company provides payments, issuance of electronic money, IBAN addressable stored value accounts and KYC identity verification services to eCommerce merchants, regulated sector businesses and consumers. ISX Financial EU Plc also operates a sophisticated & patented anti-money laundering and anti-fraud system that also provides transactional security to business and retail customers. It is real time and detects the AML issues currently in focus by regulators. ISX Financial EU Plc is part of the ISX Financial Group of companies."
+        },
+        {
+        "industry": 
+            {
+            "industry_name": "Financial and Compliance",
+            "NACE_industry_name":"Financial and Insurance Activities"
+            }
+        }
+        ]
+    },
+    {
+    "example3":
+        [
+            {
+        "job_description_text": "Kanika Hotels as earned its reputation for over 48 years as a leader in concept design for the hospitality industry. A regular stream of awards recognizes Kanika’s achievements, which are all based on policies of investing in innovative infrastructure and talent development. We’ve come this far thanks to our team of professionals and we are always keen to welcome new members on our team."
+        },
+        {
+        "industry": 
+            {
+            "industry_name": "Hospitality Industry",
+            "NACE_industry_name":"Accommodation and Food Service Activities"
+            }
+        }
+        ]
+    }
+]}
+

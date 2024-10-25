@@ -237,8 +237,8 @@ def extract_data_in_batches(llm_to_be_used, system_prompt, job_listing_not_impor
 ########################    The PROMPTS for parsing the job listing text   ########################
 parsed_industry_data = (f" *** INSTRUCTIONS: ***\n" + open_prompt_files(r"data\prompts\user_prompt_extract_data.txt") + "\n"
     + f" *** The JSON template is the following *** :\n" + open_prompt_files(r"data\prompts\json_template_job_industry.json") + "\n"
-    + f" *** The industry standards to choose from are these: *** :\n" + open_prompt_files(r"data\prompts\standard_NACE.txt") + "\n"
-    + f" Focus on extracting the industry data of a job listing!" + "\n"
+    + f" *** The NACE Standards Clasicifation List is here: *** :\n" + open_prompt_files(r"data\prompts\standard_NACE.txt") + "\n"
+    + f" *** Here are some examples of the extraction: *** :\n" + open_prompt_files(r"data\prompts\examples_job_industry.json") + "\n"
     + f" Do not forget to extract the data in a JSON format!" + "\n"
     + f" *** The job listing text is the following *** :\n")
 
@@ -388,22 +388,29 @@ def add_embedding_to_PG_job(embedding, job_reference):
         print(f"Embedding added to PostgreSQL column with reference {job_reference}.")
 
 # """ ----------------- Testing ----------------- """
-# # Test the extraction of data from a job listing - for debugging purposes
-# def test_extraction_of_data_from_job_listing():
-#     # The system prompt to be used for the LLM model
-#     extract_system_prompt = open_prompt_files("data/prompts/system_prompt_extract_data.txt")
-    
-#     # Get all the jobs that are not imported to the Graph DB
-#     all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
-    
-#     # Extract data from a single job listing
-#     job_data = all_job_not_into_graphDB[8759]
-#     print(f"Job --> {job_data['job_title']}\n{job_data['job_description']}\n\n\n")
-#     all_job_json = extract_data_in_batches(o_llama_31_8b_fp16, extract_system_prompt, job_data, max_retries=5)
-#     # industry_json = extract_data(o_llama_31_8b_fp16, extract_system_prompt, parsed_industry_data+job_data['job_description'])
-#     # save the extracted data to a JSON file
-#     with open(f'extracted_job_data_for_test.json', 'w') as f:
-#         json.dump(all_job_json, f)
-#     return all_job_json
+# Test the extraction of data from a job listing - for debugging purposes
+manual_job_data = "Kanika Hotels as earned its reputation for over 48 years as a leader in concept design for the hospitality industry. A regular stream of awards recognizes Kanika’s achievements, which are all based on policies of investing in innovative infrastructure and talent development. We’ve come this far thanks to our team of professionals and we are always keen to welcome new members on our team."
 
-# test_extraction_of_data_from_job_listing()
+# print(f"Manual job data------>  {manual_job_data}")
+
+def test_extraction_of_data_from_job_listing():
+    # The system prompt to be used for the LLM model
+    extract_system_prompt = open_prompt_files("data/prompts/system_prompt_extract_data.txt")
+    
+    # Get all the jobs that are not imported to the Graph DB
+    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
+    
+    # Extract data from a single job listing
+    db_job_data = all_job_not_into_graphDB[8759]
+    # print(f"Job --> {db_job_data['job_title']}\n{job_description}\n\n\n")
+    job_description = db_job_data['job_description']
+
+    # all_job_json = extract_data_in_batches(o_llama_31_8b_fp16, extract_system_prompt, job_data, max_retries=5)
+    one_job_json = extract_data(o_llama_31_8b_fp16, extract_system_prompt, parsed_industry_data+manual_job_data)
+    one_job_json = json.loads(one_job_json)
+    # save the extracted data to a JSON file
+    with open(f'extracted_job_data_for_test.json', 'w') as f:
+        json.dump(one_job_json, f)
+    return one_job_json
+
+test_extraction_of_data_from_job_listing()
