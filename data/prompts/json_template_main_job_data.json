@@ -1,10 +1,6 @@
 {
     "job":{
-        "job_title": "The title of the job as mentioned in the job listing",
-        "standardized_occupation": {
-            "isco_code": "The ISCO code of the occupation",
-            "isco_name": "The name of the occupation based on ISCO"
-        },
+        "ISCO_stabdardized_occupation_title": "Choose from the provided arrar of International Standard Classification of Occupations (ISCO). Use one from the array, not your words.",
         "job_seniority": "Internship, Entry, Junior, Mid, or Senior level (if mentioned, eitherwise Mid level is the default value)",
         "minimum_level_of_education": "Integer. The minimum level of education required. Not the level that will be considered as an advantage - based on ISCED (2011)",
         "employment_type": "[optional] Choose 'Full-time', 'Part-time', or something else. Null if not available in job posting.",

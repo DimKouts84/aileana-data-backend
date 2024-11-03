@@ -1,4 +1,4 @@
-Levels of education - ISCED (2011):
+ISCED Levels of education:
 * 0: Early childhood education
 * 1: Primary education
 * 2: Lower secondary education
