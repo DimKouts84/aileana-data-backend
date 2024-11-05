@@ -519,4 +519,4 @@ def test_process_jobs_and_import_to_graphDB():
             if retry_count == max_retries:
                 print(f"Failed to process job {job_data['job_reference']} with all models.")
     
-# test_process_jobs_and_import_to_graphDB()
+test_process_jobs_and_import_to_graphDB()

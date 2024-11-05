@@ -243,7 +243,7 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
     MATCH (i:INDUSTRY {industry_name: $industry_name}), (j:JOB {job_title: $job_title})
     MERGE (i)-[:POSTS]->(j)
     """
-    session.run(industry_job_rel_query, industry_name=job_data['industry']['industry_name'], job_title=job_data['job']['job_title'])
+    session.run(industry_job_rel_query, industry_name=job_data['industry']['industry_name'], job_title=job_data['job_title'])
 
 
     # Create SKILL nodes and relationships
@@ -258,7 +258,7 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         MATCH (j:JOB {job_title: $job_title}), (s:SKILL {skill_name: $skill_name})
         MERGE (j)-[:NEEDS]->(s)
         """
-        session.run(job_skill_rel_query, job_title=job_data['job']['job_title'], skill_name=skill['skills_name'])
+        session.run(job_skill_rel_query, job_title=job_data['job_title'], skill_name=skill['skills_name'])
 
     # Create EXPERIENCE node and relationship
     experience_query = """
@@ -271,7 +271,7 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
     MATCH (j:JOB {job_title: $job_title}), (e:EXPERIENCE {minimum_years: $minimum_years})
     MERGE (j)-[:REQUIRES]->(e)
     """
-    session.run(job_experience_rel_query, job_title=job_data['job']['job_title'], minimum_years=job_data['experience']['years_of_experience'])
+    session.run(job_experience_rel_query, job_title=job_data['job_title'], minimum_years=job_data['experience']['years_of_experience'])
 
     # Create BENEFIT nodes and relationships
     for benefit in job_data['benefits']:
@@ -284,7 +284,7 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         MATCH (j:JOB {job_title: $job_title}), (b:BENEFIT {benefit_name: $benefit_name})
         MERGE (j)-[:OFFERS]->(b)
         """
-        session.run(job_benefit_rel_query, job_title=job_data['job']['job_title'], benefit_name=benefit['benefit_name'])
+        session.run(job_benefit_rel_query, job_title=job_data['job_title'], benefit_name=benefit['benefit_name'])
 
     # Create RESPONSIBILITY nodes and relationships
     for responsibility in job_data['responsibilities']:
@@ -297,7 +297,7 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         MATCH (j:JOB {job_title: $job_title}), (r:RESPONSIBILITY {description: $description})
         MERGE (j)-[:HAS]->(r)
         """
-        session.run(job_responsibility_rel_query, job_title=job_data['job']['job_title'], description=responsibility['responsibility_name']) 
+        session.run(job_responsibility_rel_query, job_title=job_data['job_title'], description=responsibility['responsibility_name']) 
     
     
     # Now we create the relationship between the SKILLS and RESPONSIBILITIES and write the Cypher query to insert the data into a Neo4j database.
@@ -311,7 +311,7 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
 
 
 # !!!! NUKE the neo4J database, delete all nodes and relationships in the database.
-#                            CAUTION !!!
+#  !!!!!!!!!!!!     CAUTION    !!!!!!!!!!!!
 def nuke_neo4j_db():
     with driver.session() as session:
         session.run("MATCH (n) DETACH DELETE n")
