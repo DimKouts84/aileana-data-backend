@@ -123,7 +123,6 @@ def open_JSON_files(file_path):
 
 """ ----------------- Helper Functions ----------------- """
 ###  -----------------  API LLM Requests ----------------- ###
-
 # Function to call Local LLM using the Ollama API in JSON mode
 def call_ollama_JSON(model, system_prompt, user_prompt_for_parsing):
     url = ollama_chat_completions_url
@@ -136,7 +135,7 @@ def call_ollama_JSON(model, system_prompt, user_prompt_for_parsing):
             },
             {
                 "role": "user", 
-                "content": f"{user_prompt_for_parsing}, {llm_instructions}"
+                "content": f"{user_prompt_for_parsing}"
             }
         ], 
         "format": "json",
@@ -166,10 +165,13 @@ def call_ollama_JSON(model, system_prompt, user_prompt_for_parsing):
         return f"Error: {e} response from Ollama API."
 
 
-
-# Function to call Local LLM using the LMStudio (OPENAI) API in JSON mode
+#---------- Function to call Local LLM using the LMStudio API in JSON mode (same request as OPENAI) ----------#
 def call_lmstudio_JSON(model, system_prompt, user_prompt_for_parsing):
-    # Prepare the headers
+    # Note for Models that worked well, especially with the JSON mode:: 
+    ## Models with the best quality of output:  lmstudio-community/Qwen2.5-14B-Instruct-Q4_K_M.gguf,  lmstudio-community/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
+    ## Models that worked ok: MaziyarPanahi/Qwen2.5-7B-Instruct-Uncensored.Q5_K_S.gguf, bartowski/Llama-3.2-3B-Instruct-f16.gguf
+    
+    # Prepare the headers 
     url = lmstudio_chat_completions_url
     headers = {
         'Content-Type': 'application/json',
@@ -213,219 +215,13 @@ def validate_job_listing(data: dict) -> bool:
         return False
 
 
-###  -----------------  System & User Prompts for Data Extraction and Structuring ----------------- ###
-### A function to extract data from the job listing for for each category/node ###
-def extract_data(model, system_prompt, user_prompt):
-    # extracted_data = call_groq_JSON(model, system_prompt, user_prompt)
-    extracted_data = call_ollama_JSON(model, system_prompt, user_prompt)
-    return extracted_data
-
-### Loop for all categories/nodes of data in a job listing text. The extracted data are combined in a JSON file. ###
-# The function outputs the extracted data in a JSON format after succesful validation
-def extract_data_in_batches(llm_to_be_used, system_prompt, job_listing_not_imported, max_retries=5):
-    for attempt in range(max_retries):
-        final_json = {}
-        for prompt in prompts:
-            prompt = prompt + job_listing_not_imported['job_description']
-            extracted_data = extract_data(llm_to_be_used, system_prompt, prompt)
-            extracted_data = json.loads(extracted_data)
-            general_job_information = {"job_reference": job_listing_not_imported['job_reference'], "job_description": job_listing_not_imported['job_description']}
-            
-            time.sleep(60)  # Wait to avoid the API rate limit.
-
-            # Merge extracted data with final_json
-            final_json = {**final_json, **general_job_information, **extracted_data}
-
-            # ~~~ Debugging ~~~ #
-            logging.info(f"{timestamp} | Processing with {llm_to_be_used}")
-            print(f"Using model: '{llm_to_be_used}' now")
-
-        # Save intermediate JSON for debugging or future use
-        with open(f'final_job_data.json', 'w', encoding='utf-8') as f:
-            json.dump(final_json, f, ensure_ascii=False, indent=4)
-
-        # Validate the final JSON
-        if validate_job_listing(final_json):
-            return final_json  # Return the valid final_json
-        
-        print(f"Validation failed on attempt {attempt + 1}. Restarting extraction...")
-
-    raise ValueError("Max retries reached. Job listing extraction failed validation.")
-
-
-""" ----------------- Prompting Variables ----------------- """
-########################    The PROMPTS for parsing the job listing text   ########################
-parsed_industry_data = (f" *** INSTRUCTIONS: ***\n" + open_prompt_files(r"data\prompts\user_prompt_extract_data.txt") + "\n"
-    + f" *** The JSON template is the following *** :\n" + open_prompt_files(r"data\prompts\json_template_job_industry.json") + "\n"
-    + f" *** The NACE Standards Clasicifation List is here: *** :\n" + open_prompt_files(r"data\prompts\standard_NACE.txt") + f"Ensure that you use text from the provided list!" + "\n"
-    + f" *** Here are some examples of the extraction: *** :\n" + open_prompt_files(r"data\prompts\examples_job_industry.json") + "\n"
-    + f" Do not forget to extract the data in the provided JSON schema!" + "\n"
-    + f" *** The job listing text is the following *** :\n")
-
-parsed_main_data = (f" *** INSTRUCTIONS: ***\n" + open_prompt_files(r"data\prompts\user_prompt_extract_data.txt") + "\n"
-    + f" *** The JSON template is the following *** :\n" + open_prompt_files(r"data\prompts\json_template_main_job_data.json") + "\n"
-    + f" *** The ISCO Standard to choose from are here: *** :\n" + open_prompt_files(r"data\prompts\standard_ISCO.txt") + f"Ensure that you use the correct ISCO code!" + "\n"
-    + f" *** The ISCED Standard to choose from are here: *** :\n" + open_prompt_files(r"data\prompts\standard_ISCED.txt") + f"Ensure that you use the correct ISCED code!" + "\n"
-    + f" *** Here are some examples of the extraction: *** :\n" + open_prompt_files(r"data\prompts\examples_job_main_data.txt") + "\n"
-    + f" Do not forget to extract the data in the provided JSON schema!" + "\n"
-    + f" *** The job listing text is the following *** :\n")
-
-parsed_skills_and_qualifications = (f" *** INSTRUCTIONS: ***\n" + open_prompt_files(r"data\prompts\user_prompt_extract_data.txt") + "\n"
-    + f" *** The JSON template is the following. *** :\n" + open_prompt_files(r"data\prompts\json_template_skills.json") + "\n"
-    + f"Focus on extracting the skills and qualifications of a person!"
-    + f" Do not forget to extract the data in a JSON format!" + "\n"
-    + f" *** The job listing text is the following *** :\n")
-
-parsed_experience_and_responsibilities = (f" *** INSTRUCTIONS: ***\n" + open_prompt_files(r"data\prompts\user_prompt_extract_data.txt") + "\n"
-    + f" *** The JSON template is the following *** :\n" + open_prompt_files(r"data\prompts\json_template_experience_benefits.json") + "\n"
-    + f" Focus on extracting the benefits of a job listing and experience and responsibilities of a person!"
-    + f" Do not forget to extract the data in a JSON format!" + "\n"
-    + f" *** The job listing text is the following *** :\n")
-
-llm_instructions = (f" *** INSTRUCTIONS: ***\n" "Think step by step how you would extract the data from the job listing text.\n"
-    + " Follow the instructions in the user prompt, be ACCURATE and DO NOT HALLUCINATE.\n"
-    + " Reflect upon your thoughts, make corrections.\n")
-
-# Extraction of data in batches, to increase the accuracy of the extracted data:
-prompts = [parsed_industry_data, parsed_main_data, parsed_skills_and_qualifications, parsed_experience_and_responsibilities]
-
-""" ----------------- Job Data Processing and importing to Graph Database ----------------- """
-def process_jobs_and_import_to_graphDB(driver, country):
-    # Available open-source models for Groq LLM
-    llama8B, llama70B, llama_31_8b, llama_31_70b = "llama3-8b-8192", "llama3-70b-8192", "llama-3.1-8b-instant", "llama-3.1-70b-versatile"
-    
-    # Get all the jobs that are not imported to the Graph DB
-    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
-    
-    # The system prompt to be used for the LLM model
-    extract_system_prompt = open_prompt_files("data/prompts/system_prompt_extract_data.txt")
-    
-
-
-
-    with driver.session() as session:
-        # Loop through all the jobs that are not imported to the Graph DB and import them
-        for job_data in all_job_not_into_graphDB:
-            print(f"Job with {job_data['job_reference']}")
-            retry_count, max_retries = 0, 5
-            ## Groq Models
-            # models = [o_llama_31_8b_q4, llama_31_70b, llama_31_8b]
-            ## Ollama Models
-            models = [o_llama_32_3B_fp16, o_llama_31_8b_fp16, o_llama_32_3B_fp16, o_phi_35_8B]
-            model_index = 0
-            
-            while model_index < len(models):
-                current_model = models[model_index]
-                print(f"Using model: '{current_model}' now")
-                
-                try:
-                    job_data = extract_data_in_batches(current_model, extract_system_prompt, job_data)
-                    # Break out of the model loop if successful
-                    break 
-                except Exception as e:
-                    error_message = str(e)
-                    print(f"{error_message}\nSwitching to next model due to error.")
-                    logging.error(f"Error processing job {job_data['job_reference']} with {current_model} | {error_message}")
-                    
-                    # Move to the next model if there is an API error (like rate limiting)
-                    if "rate limit" in error_message.lower() or "Error code: 429" in error_message:
-                        model_index += 1
-                        if model_index < len(models):
-                            print(f"Switching to next model: '{models[model_index]}' due to rate limit error.")
-                    else:
-                        # Retry for other types of errors
-                        retry_count += 1
-                        if retry_count >= max_retries:
-                            print(f"Max retries reached for job {job_data['job_reference']} with {current_model}.")
-                            break
-                        print(f"Retrying... {retry_count}/{max_retries}")
-                        time.sleep(10)  # Wait to avoid the API rate limit
-            
-            # Import the job data to the Neo4j database if the process was successful
-            if retry_count < max_retries:
-                import_job_data_to_neo4j(session, job_data, job_data['job_reference'], country, job_data['job_description'])
-            else:
-                print(f"Failed to process job {job_data['job_reference']} with all models.")
-
-
-# ----------------- Embedding data and populating databases ----------------- #
-# Get all the parameters from a JOB node in the neo4j DB
-def get_node_data_from_neo4J_job(driver, job_reference):
-    with driver.session() as session:
-        # Get the job node
-        result = session.run("MATCH (j:JOB {job_reference: $job_reference}) RETURN j", job_reference=job_reference)
-        job_node_params = result.single()["j"]
-        
-        # In case there are no job nodes with the given reference
-        if job_node_params is None:
-            print(f"Job node with reference {job_reference} not found.")
-            return
-        
-        # print(f"Node properties:\n{str(job_node)}\n")
-        return job_node_params
-
-
-# Create a vector embedding from the text of a job listing data
-def create_embedding_data(text, model):
-    url = ollama_embed_url
-    payload = {
-        "input": text,
-        "model": model
-    }
-    headers = {
-        "Content-Type": "application/json"
-    }
-    response = requests.post(url, json=payload, headers=headers)
-    response.raise_for_status()  # Raise an error for bad status codes
-    print(f"Embedding created!")
-    return response.json()['embeddings'][0]
-
-class LocalLLMError(Exception):
-    pass
-
-def create_embedding_data_with_retries(text, model, retries=5):
-    for attempt in range(retries):
-        try:
-            return create_embedding_data(text, model)
-        except requests.RequestException as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            time.sleep(20)  # Optional: wait a bit before retrying
-    raise LocalLLMError("Local LLM is not working after multiple attempts.")
-
-    
-# Add the embedding to the job node in the neo4j DB
-def add_embedding_to_NEO4J_job(embedding, job_reference):
-    with driver.session() as session:
-        # Store the embedding in the job node's 'embedding' property
-        session.run("MATCH (j:JOB {job_reference: $job_reference}) CALL db.create.setNodeVectorProperty(j, 'embedding', $embedding)", job_reference=job_reference, embedding=embedding)
-        print(f"Embedding added to Neo4J job node with reference {job_reference}.")
-
-
-# Add the embedding to the job node in the PostgreSQL DB
-def add_embedding_to_PG_job(embedding, job_reference):
-    # Store the embedding into the PostgreSQL DB using the job_reference at a column named 'embedding'
-    cur, conn = connect_pg_conn(host, database, username, password)
-    with conn.cursor() as cur:
-        cur.execute("UPDATE job_listings SET embedding = %s WHERE reference = %s", (embedding, job_reference))
-        conn.commit()
-        print(f"Embedding added to PostgreSQL column with reference {job_reference}.")
-
-
-# """ ---------------------------------- Testing ---------------------------------- """
-# Get all the jobs that are not imported to the Graph DB
-all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
-# Extract data from a single job listing
-db_job_all_data = all_job_not_into_graphDB[12365]
-db_job_data = [db_job_all_data['job_title'], db_job_all_data['job_description']]
-
+###  -----------------  System & User Prompts for Data Extraction, Structuring and Classification  ----------------- ###
 # A function that takes the extracted data from two different LLM models and uses a third to define the correct output
 def job_data_preprocessing_extraction_classification(model, db_job_data):
-    print(f"Job description -->\n{db_job_data[0]}\n{db_job_data[1]}")
-    print("\n\n")
+    # Alternatively Ollama can be used by changing the function call to call_ollama_JSON. LMStudio does not specific parameters for the model, just have a dummy model name.
+    # print(f"Job description -->\n{db_job_data[0]}\n{db_job_data[1]}\n\n")
     
-    system_prompt = ("You have to follow the user's instructions and parse text data as requested."
-    + "Follow instructions, DO NOT hallucinate and be accurate in your response."
-    )
+    system_prompt = open_prompt_files("data/prompts/system_prompt_extract_data.txt")
 
     #---------------------- Data preprocessing and extraction for Industry Data ----------------------#
     user_prompt_industry_summarization = ("You will read the description of a job posting."
@@ -573,7 +369,16 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     print("The benefits classification is: ", output_benefits_classification, "\n\n")   
 
     # Combine all JSON outputs into a single JSON object
-    final_output_data_extracted_classified = {"job_reference": db_job_all_data['job_reference'], "job_description": db_job_data[1], **output_industry_classification, **output_job_title, **output_ISCO_classification, **output_experience_and_employment_classification, **output_skills_classification, **output_degrees_and_qualifications_classification, **output_benefits_classification}
+    final_output_data_extracted_classified = {
+        "job_reference": db_job_data["job_reference"], 
+        "job_description": db_job_data["job_description"], 
+        **output_industry_classification, 
+        **output_job_title, 
+        **output_ISCO_classification, 
+        **output_experience_and_employment_classification, 
+        **output_skills_classification, 
+        **output_degrees_and_qualifications_classification, 
+        **output_benefits_classification}
 
     # print(final_output_data_extractedclassified)
     
@@ -582,9 +387,136 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
 
     return final_output_data_extracted_classified
 
-#  -----------------   Testing the job data extraction and classification   ----------------- #
-final_output_data_extracted_classified = job_data_preprocessing_extraction_classification("lmstudio_model", db_job_data)
-# final_output_data_extracted_classified = open_JSON_files("final_output_data_extractedclassified_test.json")
+""" ----------------- Job Data Processing and importing to Graph Database ----------------- """
+def process_jobs_and_import_to_graphDB(driver, country):
+    # Get all the jobs that are not imported to the Graph DB
+    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
+    
+    # The system prompt to be used for the LLM model
+    current_model = "lmstudio_dummy_model_name"  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
 
-validate_job_listing(final_output_data_extracted_classified)
+    with driver.session() as session:
+        # Loop through all the jobs that are not imported to the Graph DB and import them
+        for job_data in all_job_not_into_graphDB:
+            print(f"Job with {job_data['job_reference']}")
+            retry_count, max_retries = 0, 5
+            
+            while retry_count < max_retries:
+                try:
+                    job_data = job_data_preprocessing_extraction_classification(current_model, job_data)
+                    # Import the job data to the Neo4j database if the process was successful
+                    import_job_data_to_neo4j(session, job_data, job_data['job_reference'], country, job_data['job_description'])
+                    break  # Break out of the retry loop if successful
+                except Exception as e:
+                    error_message = str(e)
+                    print(f"{error_message}\nSwitching to next model due to error.")
+                    logging.error(f"Error processing job {job_data['job_reference']} with {current_model} | {error_message}")
+                    retry_count += 1
 
+            if retry_count == max_retries:
+                print(f"Failed to process job {job_data['job_reference']} with all models.")
+
+
+
+# ----------------- Embedding data and populating databases ----------------- #
+# Get all the parameters from a JOB node in the neo4j DB
+def get_node_data_from_neo4J_job(driver, job_reference):
+    with driver.session() as session:
+        # Get the job node
+        result = session.run("MATCH (j:JOB {job_reference: $job_reference}) RETURN j", job_reference=job_reference)
+        job_node_params = result.single()["j"]
+        
+        # In case there are no job nodes with the given reference
+        if job_node_params is None:
+            print(f"Job node with reference {job_reference} not found.")
+            return
+        
+        # print(f"Node properties:\n{str(job_node)}\n")
+        return job_node_params
+
+
+# Create a vector embedding from the text of a job listing data
+def create_embedding_data(text, model):
+    url = ollama_embed_url
+    payload = {
+        "input": text,
+        "model": model
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    response.raise_for_status()  # Raise an error for bad status codes
+    print(f"Embedding created!")
+    return response.json()['embeddings'][0]
+
+class LocalLLMError(Exception):
+    pass
+
+def create_embedding_data_with_retries(text, model, retries=5):
+    for attempt in range(retries):
+        try:
+            return create_embedding_data(text, model)
+        except requests.RequestException as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            time.sleep(20)  # Optional: wait a bit before retrying
+    raise LocalLLMError("Local LLM is not working after multiple attempts.") 
+
+    
+# Add the embedding to the job node in the neo4j DB
+def add_embedding_to_NEO4J_job(embedding, job_reference):
+    with driver.session() as session:
+        # Store the embedding in the job node's 'embedding' property
+        session.run("MATCH (j:JOB {job_reference: $job_reference}) CALL db.create.setNodeVectorProperty(j, 'embedding', $embedding)", job_reference=job_reference, embedding=embedding)
+        print(f"Embedding added to Neo4J job node with reference {job_reference}.")
+
+
+# Add the embedding to the job node in the PostgreSQL DB
+def add_embedding_to_PG_job(embedding, job_reference):
+    # Store the embedding into the PostgreSQL DB using the job_reference at a column named 'embedding'
+    cur, conn = connect_pg_conn(host, database, username, password)
+    with conn.cursor() as cur:
+        cur.execute("UPDATE job_listings SET embedding = %s WHERE reference = %s", (embedding, job_reference))
+        conn.commit()
+        print(f"Embedding added to PostgreSQL column with reference {job_reference}.")
+
+""" ----------------- TESTING STUFF ----------------- """
+#  test job_data_preprocessing_extraction_classification() function with a randob job data from the postgres DB
+def test_job_data_preprocessing_extraction_classification():
+    # Get a random job data from the PostgreSQL DB
+    job_data = get_jobs_not_imported_to_neo4j()[12554]
+    print(f"Job data: {job_data}\n")
+    job_data_preprocessing_extraction_classification("Just_a_random_llm", job_data)
+
+# Test_job_data_preprocessing_extraction_classification()
+
+# Test the process_jobs_and_import_to_graphDB() function
+def test_process_jobs_and_import_to_graphDB():
+    # Get all the jobs that are not imported to the Graph DB
+    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()[12345:12350]
+    
+    # The system prompt to be used for the LLM model
+    current_model = "lmstudio_dummy_model_name"  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
+
+    with driver.session() as session:
+        # Loop through all the jobs that are not imported to the Graph DB and import them
+        for job_data in all_job_not_into_graphDB:
+            print(f"Job with {job_data['job_reference']}")
+            print(f"Job description: {job_data['job_description']}\n")
+            retry_count, max_retries = 0, 5
+            while retry_count < max_retries:
+                try:
+                    job_data = job_data_preprocessing_extraction_classification(current_model, job_data)
+                    # Import the job data to the Neo4j database if the process was successful
+                    import_job_data_to_neo4j(session, job_data, job_data['job_reference'], country, job_data['job_description'])
+                    break  # Break out of the retry loop if successful
+                except Exception as e:
+                    error_message = str(e)
+                    print(f"{error_message}\nSwitching to next model due to error.")
+                    logging.error(f"Error processing job {job_data['job_reference']} with {current_model} | {error_message}")
+                    retry_count += 1
+
+            if retry_count == max_retries:
+                print(f"Failed to process job {job_data['job_reference']} with all models.")
+    
+# test_process_jobs_and_import_to_graphDB()

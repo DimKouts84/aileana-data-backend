@@ -210,25 +210,29 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
     MERGE (i:INDUSTRY {industry_name: $industry_name})
     ON CREATE SET i.standardized_industry_name = $standardized_industry_name
     """
-    session.run(industry_query, industry_name=job_data['industry']['industry_name'], standardized_industry_name=job_data['industry']['NACE_industry_name'])
+    session.run(industry_query, industry_name=job_data['industry']['industry_name'], standardized_industry_name=job_data['industry']['NACE_standardized_name'])
 
     # Create JOB node
     job_query = """
-    CREATE (j:JOB {job_title: $job_title, job_reference: $job_reference, standardized_occupation: $standardized_occupation, 
-                standardized_occupation_code: $standardized_occupation_code, job_seniority: $job_seniority, 
+    CREATE (j:JOB {job_title: $job_title, job_reference: $job_reference, 
+                standardized_occupation: $standardized_occupation, job_seniority: $job_seniority, 
                 minimum_level_of_education: $minimum_level_of_education, employment_type: $employment_type, 
                 employment_model: $employment_model, country: $country, job_description: $job_description_text, embedding: NULL})
     """
     
+    ##########################################################################################################################
+    ################################## PREPEI NA TA FTIAKSO AUTA !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ##########################################################################################################################
+    
     job_params = {
-        'job_title': job_data['job']['job_title'],
+        'job_title': job_data['job_title'],
         'job_reference': job_reference,
-        'standardized_occupation': job_data['job']['standardized_occupation']['isco_name'],
-        'standardized_occupation_code': job_data['job']['standardized_occupation']['isco_code'],
-        'job_seniority': job_data['job']['job_seniority'],
-        'minimum_level_of_education': job_data['job']['minimum_level_of_education'],
-        'employment_type': job_data['job'].get('employment_type', None),
-        'employment_model': job_data['job'].get('employment_model', None),
+        'standardized_occupation': job_data['isco_name'],
+        # 'standardized_occupation_code': job_data['job']['standardized_occupation']['isco_code'],
+        'job_seniority': job_data['occuation_details']['job_seniority'],
+        'minimum_level_of_education': job_data['occuation_details']['minimum_level_of_education'],
+        'employment_type': job_data['occuation_details'].get('employment_type', None),
+        'employment_model': job_data['occuation_details'].get('employment_model', None),
         'country': country,
         'job_description_text': job_description_text
     }
