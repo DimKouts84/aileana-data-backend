@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 
 # Imports from other .py scripts
-from helpers_sqldb import get_jobs_not_imported_to_neo4j, import_job_data_to_neo4j
+from helpers_sqldb import get_jobs_not_imported_to_neo4j, import_job_data_to_neo4j, nuke_neo4j_db, reset_imported_status
 
 load_dotenv(override=True)
 
@@ -52,7 +52,7 @@ ollama_completions_url = os.getenv("OLLAMA_COMPLETIONS_URL")
 ollama_chat_completions_url = os.getenv("OLLAMA_CHAT_COMPLETIONS_URL")
 o_llama_31_8b_fp16, o_llama_32_3B_fp16, o_phi_35_8B, qwen25_7B = "llama3.1:8b-instruct-fp16","llama3.2:3b-instruct-fp16", "phi3.5:3.8b-mini-instruct-q8_0", "qwen2.5:7b-instruct-fp16"
 
-
+lmstudio_embeddings_url = os.getenv("LM_STUDIO_EMBEDDINGS_URL")
 lmstudio_chat_completions_url = os.getenv("LM_STUDIO_COMPLETIONS_URL")
 
 
@@ -390,7 +390,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
 """ ----------------- Job Data Processing and importing to Graph Database ----------------- """
 def process_jobs_and_import_to_graphDB(driver, country):
     # Get all the jobs that are not imported to the Graph DB
-    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
+    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()[12345:12355]
     
     # The system prompt to be used for the LLM model
     current_model = "lmstudio_dummy_model_name"  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
@@ -399,11 +399,19 @@ def process_jobs_and_import_to_graphDB(driver, country):
         # Loop through all the jobs that are not imported to the Graph DB and import them
         for job_data in all_job_not_into_graphDB:
             print(f"Job with {job_data['job_reference']}")
-            retry_count, max_retries = 0, 5
-            
+            print(f"Job description: {job_data['job_description']}\n")
+            retry_count, max_retries = 0, 10
             while retry_count < max_retries:
                 try:
                     job_data = job_data_preprocessing_extraction_classification(current_model, job_data)
+                    
+                    # VALIDATE THE JOB DATA
+                    if validate_job_listing(job_data):
+                        print("Job data is valid!\n")
+                    else:
+                        print("Job data is invalid!\n")
+                        break
+                    
                     # Import the job data to the Neo4j database if the process was successful
                     import_job_data_to_neo4j(session, job_data, job_data['job_reference'], country, job_data['job_description'])
                     break  # Break out of the retry loop if successful
@@ -436,7 +444,7 @@ def get_node_data_from_neo4J_job(driver, job_reference):
 
 
 # Create a vector embedding from the text of a job listing data
-def create_embedding_data(text, model):
+def create_ollama_embeddings_data(text, model):
     url = ollama_embed_url
     payload = {
         "input": text,
@@ -450,13 +458,35 @@ def create_embedding_data(text, model):
     print(f"Embedding created!")
     return response.json()['embeddings'][0]
 
+
+############################################################################
+# TO-DO HERE ------------- #################################################
+# ------------------------ CREATE EMBEDDINGS WITH LM STUDIO ################
+############################################################################
+
+def create_lmstudio_embeddings_data(text, model):
+    # LMStudio API does not require a specific model name
+    url = lmstudio_embeddings_url
+    payload = {
+        "input": text,
+        "model": model
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    response.raise_for_status()  # Raise an error for bad status codes
+    print(f"Embedding created!")
+    return response.json()['embeddings'][0]
+
+
 class LocalLLMError(Exception):
     pass
 
-def create_embedding_data_with_retries(text, model, retries=5):
+def create_ollama_embeddings_data_with_retries(text, model, retries=5):
     for attempt in range(retries):
         try:
-            return create_embedding_data(text, model)
+            return create_ollama_embeddings_data(text, model)
         except requests.RequestException as e:
             print(f"Attempt {attempt + 1} failed: {e}")
             time.sleep(20)  # Optional: wait a bit before retrying
@@ -488,35 +518,8 @@ def test_job_data_preprocessing_extraction_classification():
     print(f"Job data: {job_data}\n")
     job_data_preprocessing_extraction_classification("Just_a_random_llm", job_data)
 
-# Test_job_data_preprocessing_extraction_classification()
 
-# Test the process_jobs_and_import_to_graphDB() function
-def test_process_jobs_and_import_to_graphDB():
-    # Get all the jobs that are not imported to the Graph DB
-    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()[12345:12350]
-    
-    # The system prompt to be used for the LLM model
-    current_model = "lmstudio_dummy_model_name"  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
-
-    with driver.session() as session:
-        # Loop through all the jobs that are not imported to the Graph DB and import them
-        for job_data in all_job_not_into_graphDB:
-            print(f"Job with {job_data['job_reference']}")
-            print(f"Job description: {job_data['job_description']}\n")
-            retry_count, max_retries = 0, 5
-            while retry_count < max_retries:
-                try:
-                    job_data = job_data_preprocessing_extraction_classification(current_model, job_data)
-                    # Import the job data to the Neo4j database if the process was successful
-                    import_job_data_to_neo4j(session, job_data, job_data['job_reference'], country, job_data['job_description'])
-                    break  # Break out of the retry loop if successful
-                except Exception as e:
-                    error_message = str(e)
-                    print(f"{error_message}\nSwitching to next model due to error.")
-                    logging.error(f"Error processing job {job_data['job_reference']} with {current_model} | {error_message}")
-                    retry_count += 1
-
-            if retry_count == max_retries:
-                print(f"Failed to process job {job_data['job_reference']} with all models.")
-    
-test_process_jobs_and_import_to_graphDB()
+# ----------------- Testing and debugging ----------------- #
+# nuke_neo4j_db()
+# reset_imported_status()
+process_jobs_and_import_to_graphDB()

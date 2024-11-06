@@ -205,6 +205,7 @@ def create_relationship_skill_and_responsibilities_in_neo4j(structured_job_data)
 
 # Function to create nodes and relationships
 def import_job_data_to_neo4j(session, job_data, job_reference, country, job_description_text):
+
     # Create INDUSTRY node
     industry_query = """
     MERGE (i:INDUSTRY {industry_name: $industry_name})
@@ -219,10 +220,6 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
                 minimum_level_of_education: $minimum_level_of_education, employment_type: $employment_type, 
                 employment_model: $employment_model, country: $country, job_description: $job_description_text, embedding: NULL})
     """
-    
-    ##########################################################################################################################
-    ################################## PREPEI NA TA FTIAKSO AUTA !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ##########################################################################################################################
     
     job_params = {
         'job_title': job_data['job_title'],
@@ -309,9 +306,8 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
     driver.close()
 
 
-
-# !!!! NUKE the neo4J database, delete all nodes and relationships in the database.
-#  !!!!!!!!!!!!     CAUTION    !!!!!!!!!!!!
+'''  !!!!!!!!!!!!     CAUTION    !!!!!!!!!!!!'''
+# !!!! NUKE the neo4J database, delete all nodes and relationships in the database. !!!!
 def nuke_neo4j_db():
     with driver.session() as session:
         session.run("MATCH (n) DETACH DELETE n")
@@ -319,6 +315,19 @@ def nuke_neo4j_db():
         print("~~~~~~~~ Neo4j database has been N_U_K_E_D !!!!!")
     driver.close()
 
+
+# !!!! Reset the 'imported' status of all job listings in the database to NULL !!!!!
+def reset_imported_status():
+    cur, conn = connect_pg_conn(host, database, username, password)
+    cur.execute("""
+        UPDATE job_listings
+        SET imported = NULL
+    """)
+    conn.commit()
+    conn.close()
+
+
 # ----------------- Testing and debugging ----------------- #
 # print(get_embedding("This is a test"))
 # nuke_neo4j_db()
+# reset_imported_status()
