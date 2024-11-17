@@ -235,12 +235,12 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
     }
     session.run(job_query, job_params)
 
-    # Create relationship between INDUSTRY and JOB
+    # Create relationship between INDUSTRY and JOB nodes based on their standardized classifications
     industry_job_rel_query = """
-    MATCH (i:INDUSTRY {industry_name: $industry_name}), (j:JOB {job_title: $job_title})
+    MATCH (i:INDUSTRY {standardized_industry_name: $standardized_industry_name}), (j:JOB {standardized_occupation: $standardized_occupation})
     MERGE (i)-[:POSTS]->(j)
     """
-    session.run(industry_job_rel_query, industry_name=job_data['industry']['industry_name'], job_title=job_data['job_title'])
+    session.run(industry_job_rel_query, standardized_industry_name=job_data['industry']['NACE_standardized_name'], job_title=job_data['isco_name'])
 
 
     # Create SKILL nodes and relationships
