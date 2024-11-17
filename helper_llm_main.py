@@ -54,7 +54,8 @@ o_llama_31_8b_fp16, o_llama_32_3B_fp16, o_phi_35_8B, qwen25_7B = "llama3.1:8b-in
 
 lmstudio_embeddings_url = os.getenv("LM_STUDIO_EMBEDDINGS_URL")
 lmstudio_chat_completions_url = os.getenv("LM_STUDIO_COMPLETIONS_URL")
-
+lmstudio_model = "qwen2.5-14b-instruct"
+lmstudio_embedding_model = "text-embedding-bge-m3"
 
 # Confifgure the logger and the timestamp
 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -232,28 +233,51 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     
     summarization_industry = call_lmstudio_JSON(model, system_prompt, user_prompt_industry_summarization)
     
-    NACE_stabdardized_industry_title = [open_prompt_files(r'data\prompts\standard_NACE.txt')]
+    NACE_standardized_industry_title = [open_prompt_files(r'data\prompts\standard_NACE.txt')]
     user_prompt_industry_data_classification = (f" Read the information provided for a company and the industry it operates in. "
     + "You will have to provide the the NACE industry title, from the list provided below."
-    + "The NACE Standards Clasicifation List is here: "+ str(NACE_stabdardized_industry_title  )  
+    + "The NACE Standards Clasicifation List is here: "+ str(NACE_standardized_industry_title  )  
     + f" *** The company information is the following *** {summarization_industry}:\n"
     + 'Your outpout must follow the JSON template:'
     + '{"industry": {"industry_name":"A title of the industry","NACE_standardized_name":"The NACE title from the list that matches the company industry"}}'
     + "Ensure to output EXACTLY the JSON format without any additional explanations!")
     
-    # Check if the NACE classification is correct and loop until the correct classification is made
+    # Read the NACE classification and loop until the correct classification is made based on the job description
     while True:
-        output_industry_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
-        NACE_stabdardized_industry_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_NACE.txt').strip('[]').split(',\n')]
+        output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
+        NACE_standardized_industry_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_NACE.txt').strip('[]').split(',\n')]
 
-        if output_industry_classification['industry']['NACE_standardized_name'] in NACE_stabdardized_industry_title:
-            print("The NACE classification is: ", output_industry_classification, "\n\n")
+        if output_industry_classification_lvl_I['industry']['NACE_standardized_name'] in NACE_standardized_industry_title:
+            print("The NACE Level I classification is: ", output_industry_classification_lvl_I, "\n\n")
             break
         else:
-            print(f"The NACE classification {output_industry_classification['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
-            output_industry_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
+            print(f"The NACE Level I classification {output_industry_classification_lvl_I['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
+            output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
     
-    
+    NACE_standardized_subcategory_list = json.loads(open_prompt_files(r'data\prompts\NACE_Classification_Tree.json')) # [output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
+    NACE_standardized_subcategories = NACE_standardized_subcategory_list[output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
+
+
+    user_prompt_industry_subcategory_classification = (f" Read the information provided for a company and the industry it operates in. "
+    + "You will have to provide the the NACE industry title, from the list provided below."
+    + "The NACE Standards Clasicifation List is here: "+ str(NACE_standardized_subcategories)
+    + f" *** The company information is the following *** {summarization_industry}:\n"
+    + 'Your outpout must follow the JSON template:'
+    + '{"industry": {"industry_name":"A title of the industry","NACE_standardized_name":"The NACE title from the list that matches the company industry"}}'
+    + "Ensure to output EXACTLY the JSON format without any additional explanations!")
+
+    # Read the NACE classification with subcategories and loop until the correct classification of the subcategory is made based on the job description
+    while True:
+        output_industry_classification_lvl_II = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_subcategory_classification))
+        
+        if output_industry_classification_lvl_II['industry']['NACE_standardized_name'] in NACE_standardized_subcategories:
+            print("The NACE Level II classification is: ", output_industry_classification_lvl_II, "\n\n")
+            break
+        else:
+            print(f"The NACE Level II classification {output_industry_classification_lvl_II['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
+            output_industry_classification_lvl_II = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_subcategory_classification))
+
+
     #---------------------- Data preprocessing and extraction for Main Job Data ----------------------#
     user_prompt_for_summarization = ("You will read the description of a job posting. "
     +"Then you will summarize the description of the job in a sentence (including a description of the company, title and a other information)."
@@ -372,7 +396,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     final_output_data_extracted_classified = {
         "job_reference": db_job_data["job_reference"], 
         "job_description": db_job_data["job_description"], 
-        **output_industry_classification, 
+        **output_industry_classification_lvl_II, 
         **output_job_title, 
         **output_ISCO_classification, 
         **output_experience_and_employment_classification, 
@@ -390,16 +414,17 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
 """ ----------------- Job Data Processing and importing to Graph Database ----------------- """
 def process_jobs_and_import_to_graphDB(driver, country):
     # Get all the jobs that are not imported to the Graph DB
-    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()[12345:12355]
+    all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
     
     # The system prompt to be used for the LLM model
-    current_model = "lmstudio_dummy_model_name"  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
+    current_model = lmstudio_model  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
 
     with driver.session() as session:
         # Loop through all the jobs that are not imported to the Graph DB and import them
         for job_data in all_job_not_into_graphDB:
-            print(f"Job with {job_data['job_reference']}")
-            print(f"Job description: {job_data['job_description']}\n")
+            print(job_data, "\n")
+            # print(f"Job with {job_data['job_reference']}")
+            # print(f"Job description: {job_data['job_description']}\n")
             retry_count, max_retries = 0, 10
             while retry_count < max_retries:
                 try:
@@ -427,6 +452,7 @@ def process_jobs_and_import_to_graphDB(driver, country):
 
 
 # ----------------- Embedding data and populating databases ----------------- #
+
 # Get all the parameters from a JOB node in the neo4j DB
 def get_node_data_from_neo4J_job(driver, job_reference):
     with driver.session() as session:
@@ -456,17 +482,13 @@ def create_ollama_embeddings_data(text, model):
     response = requests.post(url, json=payload, headers=headers)
     response.raise_for_status()  # Raise an error for bad status codes
     print(f"Embedding created!")
-    return response.json()['embeddings'][0]
+    return response.json()['embeddings']
 
-
-############################################################################
-# TO-DO HERE ------------- #################################################
-# ------------------------ CREATE EMBEDDINGS WITH LM STUDIO ################
-############################################################################
 
 def create_lmstudio_embeddings_data(text, model):
     # LMStudio API does not require a specific model name
     url = lmstudio_embeddings_url
+    
     payload = {
         "input": text,
         "model": model
@@ -477,8 +499,9 @@ def create_lmstudio_embeddings_data(text, model):
     response = requests.post(url, json=payload, headers=headers)
     response.raise_for_status()  # Raise an error for bad status codes
     print(f"Embedding created!")
-    return response.json()['embeddings'][0]
-
+    # save the embedding into a JSON file
+    embedding = response.json()['data'][0]['embedding']
+    return embedding
 
 class LocalLLMError(Exception):
     pass
@@ -489,10 +512,20 @@ def create_ollama_embeddings_data_with_retries(text, model, retries=5):
             return create_ollama_embeddings_data(text, model)
         except requests.RequestException as e:
             print(f"Attempt {attempt + 1} failed: {e}")
-            time.sleep(20)  # Optional: wait a bit before retrying
+            # time.sleep(20)  # Optional: wait a bit before retrying
     raise LocalLLMError("Local LLM is not working after multiple attempts.") 
 
-    
+
+def create_lmstudio_embeddings_data_with_retries(text, model, retries=5):
+    for attempt in range(retries):
+        try:
+            return create_lmstudio_embeddings_data(text, model)
+        except requests.RequestException as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            # time.sleep(20)  # Optional: wait a bit before retrying
+    raise LocalLLMError("LMStudio is not working after multiple attempts.")
+
+
 # Add the embedding to the job node in the neo4j DB
 def add_embedding_to_NEO4J_job(embedding, job_reference):
     with driver.session() as session:
@@ -510,16 +543,56 @@ def add_embedding_to_PG_job(embedding, job_reference):
         conn.commit()
         print(f"Embedding added to PostgreSQL column with reference {job_reference}.")
 
-""" ----------------- TESTING STUFF ----------------- """
-#  test job_data_preprocessing_extraction_classification() function with a randob job data from the postgres DB
-def test_job_data_preprocessing_extraction_classification():
-    # Get a random job data from the PostgreSQL DB
-    job_data = get_jobs_not_imported_to_neo4j()[12554]
-    print(f"Job data: {job_data}\n")
-    job_data_preprocessing_extraction_classification("Just_a_random_llm", job_data)
+
+def job_rag_pipeline(driver):
+    # Query for jobs that do not have embeddings in the Neo4jDB
+    query = """
+    MATCH (j:JOB)
+    WHERE (j.embedding) IS NULL
+    RETURN j.job_reference AS job_reference, j.job_description AS job_description
+    """
+    with driver.session() as session:
+        result = session.run(query)
+        for record in result:
+            job_reference = record["job_reference"]
+            print(f"Processing job {job_reference}...")
+            # Create the embeddings with LMStudio
+            embedding = create_lmstudio_embeddings_data_with_retries(record, lmstudio_embedding_model)
+            # ''' ~ OR ~ '''
+            # Create the embeddings with Ollama
+            # embedding = create_ollama_embeddings_data_with_retries(record, "bge-m3:latest")
+            
+            # Add the embeddings to the Neo4j DB
+            add_embedding_to_NEO4J_job(embedding, job_reference)
+            # Add the embeddings to the PostgreSQL DB
+            add_embedding_to_PG_job(embedding, job_reference)
+            print(f"Embeddings for {job_reference} added to the Neo4j and PostgreSQL DBs.")
+    return 
 
 
-# ----------------- Testing and debugging ----------------- #
+""" ----------------- TESTING STUFF ----------------- 
 # nuke_neo4j_db()
 # reset_imported_status()
-process_jobs_and_import_to_graphDB()
+
+# Test job_data_preprocessing_extraction_classification() function
+# Get a random job data from the PostgreSQL DB
+
+def test_job_data_stuff():
+    job_data = get_jobs_not_imported_to_neo4j()[12533]
+    print(f"Job data: {job_data}\n")    
+    
+    job_data_preprocessing_extraction_classification(lmstudio_model, job_data)
+    
+    process_jobs_and_import_to_graphDB(driver, country="Cyprus")
+    # job_data = get_node_data_from_neo4J_job(driver, "REF. NUM: 250983")
+    print("JOB NOD DATA---->\n", get_node_data_from_neo4J_job(driver, "REF. NUM: 250983"), "\n")
+    print("JOB DATA EMBEDDING ---->", create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3"), "\n")
+
+# test_job_data_stuff()
+# print(create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3"), type(create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3")))
+# print(create_ollama_embeddings_data(str(job_data), "bge-m3:latest"), type(create_ollama_embeddings_data(str(job_data), "bge-m3:latest")))
+
+
+job_rag_pipeline(driver)
+
+"""
