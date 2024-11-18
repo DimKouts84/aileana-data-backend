@@ -27,8 +27,8 @@ url = os.environ['SCRAPE_URL']
 # get_jobs_without_description_scrape_and_translate()
 
 # Uncomment the below code to reset the imported status of all the jobs in the DB and
-# nuke_neo4j_db()
-# reset_imported_status()
+nuke_neo4j_db()
+reset_imported_status()
 
 
 # Get all the jobs that are not imported to the Graph DB, process and import them to the Graph DB

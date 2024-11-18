@@ -279,16 +279,16 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
 
 
     #---------------------- Data preprocessing and extraction for Main Job Data ----------------------#
-    user_prompt_for_summarization = ("You will read the description of a job posting. "
-    +"Then you will summarize the description of the job in a sentence (including a description of the company, title and a other information)."
+    user_prompt_for_job_title_summarization = ("You will read the description of a job posting. "
+    +"Then you will summarize the description of the job in a sentence."
     +"Here is the job description: "+ str(db_job_data)
-    +'Your output must follow the JSON template: {"job_title_description":"The job description in a sentence"}'
+    +'Your output must follow the JSON template: {"job_title_description":"The job title summarization in a sentence"}'
     +"Ensure to output ONLY in JSON format without any additional explanations!")
     
-    summarization_of_job_title = call_lmstudio_JSON(model, system_prompt, user_prompt_for_summarization)
+    summarization_of_job_title = call_lmstudio_JSON(model, system_prompt, user_prompt_for_job_title_summarization)
     
     user_prompt_for_job_title = ("You will receive information about the job title of a job posting."
-    + "You will output ONLY the title of the job. Do not include the company name or any other information, just the job title"
+    + "You will output ONLY the title of the job. Do not include the company name or any other information, just the job title itself."
     + "The job information is the following: "+ str(summarization_of_job_title)
     + 'Your output must follow the JSON template: {"job_title":"The job title"}'
     + "Ensure to output ONLY in JSON format without any additional explanations!")
@@ -296,11 +296,19 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     output_job_title = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_job_title))
     print("The job title is: ", output_job_title, "\n\n")
     
-    ISCO_stabdardized_occupation_title = [open_prompt_files(r'data\prompts\standard_ISCO.txt')]
+    # def open_ISCO_file(file):
+    #     with open(file, 'r', encoding='utf-8') as f:
+    #         isco_data = f.read()
+    #         # Convert the string to a list of titles
+    #         isco_list = json.loads(isco_data)
+    #         return isco_list
+        
+    # ISCO_standardized_occupation_title = open_ISCO_file(r'data\prompts\standard_ISCO.txt')
+    ISCO_standardized_occupation_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_ISCO.txt').strip('[]').split(',\n')]
     user_prompt_for_ISCO_classification = ("You will receive job information about the job title of a job posting."
     +"You will have to classify the ISCO title based on the job description."
-    +"The job title is the following: "+ summarization_of_job_title +"\n"
-    +"Here is a list of ISCO titles is:"+ str(ISCO_stabdardized_occupation_title)
+    +"The job title is the following: "+ str(summarization_of_job_title) +"\n"
+    +"Here is a list of ISCO titles is:"+ str(ISCO_standardized_occupation_title)
     +"Step A: Read all ISCO titles"
     +"Step B: Think step by step and choose the ISCO title that matches the job description!\n" 
     +'Your output must follow the JSON template: {"isco_name":"The ISCO title from the provided list"}'
@@ -308,15 +316,15 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     
     # Check if the ISCO classification is correct and loop until the correct classification is made
     while True:
+        # print("Job title description: --->", summarization_of_job_title)
         output_ISCO_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_ISCO_classification))
-        ISCO_stabdardized_occupation_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_ISCO.txt').strip('[]').split(',\n')]
 
-        if output_ISCO_classification['isco_name'] in ISCO_stabdardized_occupation_title:
-            print("The ISCO classification is: ", output_ISCO_classification, "\n\n")
+        if output_ISCO_classification['isco_name'] in ISCO_standardized_occupation_title:
+            print("The ISCO classification is: ", output_ISCO_classification['isco_name'], "\n\n")
             break
         else:
             print(f"The ISCO classification {output_ISCO_classification['isco_name']} is incorrect. Please classify the ISCO title again.")
-            output_ISCO_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_ISCO_classification))
+
 
     #---------------------- Data preprocessing and extraction for Experience and Employment Data ----------------------#
     user_prompt_for_experience_and_employment = ("You will read the description of a job posting."
@@ -570,29 +578,28 @@ def job_rag_pipeline(driver):
     return 
 
 
-""" ----------------- TESTING STUFF ----------------- 
+
+""" ----------------- TESTING STUFF ----------------- """
 # nuke_neo4j_db()
 # reset_imported_status()
 
 # Test job_data_preprocessing_extraction_classification() function
 # Get a random job data from the PostgreSQL DB
 
-def test_job_data_stuff():
-    job_data = get_jobs_not_imported_to_neo4j()[12533]
-    print(f"Job data: {job_data}\n")    
+# def test_job_data_stuff():
+#     job_data = get_jobs_not_imported_to_neo4j()[12533]
+#     print(f"Job data: {job_data}\n")    
     
-    job_data_preprocessing_extraction_classification(lmstudio_model, job_data)
+#     job_data_preprocessing_extraction_classification(lmstudio_model, job_data)
     
-    process_jobs_and_import_to_graphDB(driver, country="Cyprus")
-    # job_data = get_node_data_from_neo4J_job(driver, "REF. NUM: 250983")
-    print("JOB NOD DATA---->\n", get_node_data_from_neo4J_job(driver, "REF. NUM: 250983"), "\n")
-    print("JOB DATA EMBEDDING ---->", create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3"), "\n")
+#     process_jobs_and_import_to_graphDB(driver, country="Cyprus")
+#     # job_data = get_node_data_from_neo4J_job(driver, "REF. NUM: 250983")
+#     print("JOB NOD DATA---->\n", get_node_data_from_neo4J_job(driver, "REF. NUM: 250983"), "\n")
+#     print("JOB DATA EMBEDDING ---->", create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3"), "\n")
 
 # test_job_data_stuff()
 # print(create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3"), type(create_lmstudio_embeddings_data(str(job_data), "text-embedding-bge-m3")))
 # print(create_ollama_embeddings_data(str(job_data), "bge-m3:latest"), type(create_ollama_embeddings_data(str(job_data), "bge-m3:latest")))
 
 
-job_rag_pipeline(driver)
-
-"""
+# job_rag_pipeline(driver)

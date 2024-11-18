@@ -377,5 +377,5 @@
 "Vending-machine money collectors,meter readers and related workers",
 "Garbage collectors",
 "Sweepers and related labourers",
-"Farm-hands and labourers "
+"Farm-hands and labourers"
 ]

@@ -208,10 +208,11 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
 
     # Create INDUSTRY node
     industry_query = """
-    MERGE (i:INDUSTRY {industry_name: $industry_name})
-    ON CREATE SET i.standardized_industry_name = $standardized_industry_name
+    MERGE (i:INDUSTRY {standardized_industry_name: $standardized_industry_name})
+    ON CREATE SET i.industry_name = $industry_name;
     """
     session.run(industry_query, industry_name=job_data['industry']['industry_name'], standardized_industry_name=job_data['industry']['NACE_standardized_name'])
+
 
     # Create JOB node
     job_query = """
@@ -220,12 +221,11 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
                 minimum_level_of_education: $minimum_level_of_education, employment_type: $employment_type, 
                 employment_model: $employment_model, country: $country, job_description: $job_description_text, embedding: NULL})
     """
-    
+
     job_params = {
         'job_title': job_data['job_title'],
         'job_reference': job_reference,
         'standardized_occupation': job_data['isco_name'],
-        # 'standardized_occupation_code': job_data['job']['standardized_occupation']['isco_code'],
         'job_seniority': job_data['occuation_details']['job_seniority'],
         'minimum_level_of_education': job_data['occuation_details']['minimum_level_of_education'],
         'employment_type': job_data['occuation_details'].get('employment_type', None),
@@ -235,12 +235,13 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
     }
     session.run(job_query, job_params)
 
+
     # Create relationship between INDUSTRY and JOB nodes based on their standardized classifications
     industry_job_rel_query = """
     MATCH (i:INDUSTRY {standardized_industry_name: $standardized_industry_name}), (j:JOB {standardized_occupation: $standardized_occupation})
     MERGE (i)-[:POSTS]->(j)
     """
-    session.run(industry_job_rel_query, standardized_industry_name=job_data['industry']['NACE_standardized_name'], job_title=job_data['isco_name'])
+    session.run(industry_job_rel_query, standardized_industry_name=job_data['industry']['NACE_standardized_name'], standardized_occupation=job_data['isco_name'])
 
 
     # Create SKILL nodes and relationships
@@ -323,6 +324,8 @@ def reset_imported_status():
         UPDATE job_listings
         SET imported = NULL
     """)
+    print("~~~~~~~~ PostgreSQL 'imported' status has been reset to NULL !!!!!")
+
     conn.commit()
     conn.close()
 
