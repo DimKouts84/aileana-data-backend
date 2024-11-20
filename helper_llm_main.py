@@ -69,11 +69,11 @@ class industry(BaseModel):
     industry_name: str
     NACE_standardized_name: str
 
-class occuation_details(BaseModel):
+class occupation_details(BaseModel):
     job_seniority: str
     minimum_level_of_education: int
-    employment_type: Optional[str]
-    employment_model: Optional[str]
+    employment_type: Optional[str] = None  # Assign default value
+    employment_model: Optional[str] = None  # Assign default value
 
 class skills(BaseModel):
     skills_category: str
@@ -89,7 +89,7 @@ class academic_degree(BaseModel):
     
 class experience(BaseModel):
     experience_required: bool
-    years_of_experience: Optional[int]  # Allow None values
+    years_of_experience: Optional[int] = None  # Assign default value
     
 class benefits(BaseModel):
     benefit_name: str
@@ -103,7 +103,7 @@ class JobListing(BaseModel):
     industry: industry
     job_title: str
     isco_name: str
-    occuation_details: occuation_details
+    occupation_details: occupation_details
     skills: List[skills]
     certifications: List[certifications]
     academic_degree: List[academic_degree]
@@ -233,7 +233,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     
     summarization_industry = call_lmstudio_JSON(model, system_prompt, user_prompt_industry_summarization)
     
-    NACE_standardized_industry_title = [open_prompt_files(r'data\prompts\standard_NACE.txt')]
+    NACE_standardized_industry_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_NACE.txt').strip('[]').split(',\n')]
     user_prompt_industry_data_classification = (f" Read the information provided for a company and the industry it operates in. "
     + "You will have to provide the the NACE industry title, from the list provided below."
     + "The NACE Standards Clasicifation List is here: "+ str(NACE_standardized_industry_title  )  
@@ -245,14 +245,13 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     # Read the NACE classification and loop until the correct classification is made based on the job description
     while True:
         output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
-        NACE_standardized_industry_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_NACE.txt').strip('[]').split(',\n')]
-
+        
         if output_industry_classification_lvl_I['industry']['NACE_standardized_name'] in NACE_standardized_industry_title:
             print("The NACE Level I classification is: ", output_industry_classification_lvl_I, "\n\n")
             break
         else:
             print(f"The NACE Level I classification {output_industry_classification_lvl_I['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
-            output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
+            # output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
     
     NACE_standardized_subcategory_list = json.loads(open_prompt_files(r'data\prompts\NACE_Classification_Tree.json')) # [output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
     NACE_standardized_subcategories = NACE_standardized_subcategory_list[output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
@@ -296,12 +295,6 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     output_job_title = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_job_title))
     print("The job title is: ", output_job_title, "\n\n")
     
-    # def open_ISCO_file(file):
-    #     with open(file, 'r', encoding='utf-8') as f:
-    #         isco_data = f.read()
-    #         # Convert the string to a list of titles
-    #         isco_list = json.loads(isco_data)
-    #         return isco_list
         
     # ISCO_standardized_occupation_title = open_ISCO_file(r'data\prompts\standard_ISCO.txt')
     ISCO_standardized_occupation_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_ISCO.txt').strip('[]').split(',\n')]
@@ -333,7 +326,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     +'Your output must follow the JSON template: {"experience_and_employment":"Summarization of the minimum years of experience required, educational level or degrees required and the employment type"}'
     +"Ensure to output ONLY in JSON format without any additional explanations!")
     
-    summarization_of_experience_and_employment = call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_and_employment)
+    summarization_of_experience_and_employment = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_and_employment))    
     
     ISCED_stabdardized_occupation_title = [open_prompt_files(r'data\prompts\standard_ISCED.txt')]
     user_prompt_for_experience_and_employment_classification = ("You will receive information about the experience required and employment type of a job posting."
@@ -342,7 +335,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "The job information is the following: "+ str(summarization_of_experience_and_employment)
     + " *** The ISCED Standard to choose from are here: *** :" + str(ISCED_stabdardized_occupation_title)
     + "Your output must follow the JSON template:\n"
-    + '{"occuation_details":{"job_seniority": " "Internship", "Entry" (if no experience required), "Junior" (if 1-2 years required), "Mid", "Senior", "Director/Executive" level (if mentioned, eitherwise Mid level is the default value)","minimum_level_of_education": "Integer. The minimum level of education required, that matches the ISCED definition. Not the level that will be considered as an advantage","employment_type": "[optional] Choose "Full-time", "Part-time", or something else. If not available the output is "Null".","employment_model": "[optional] Choose "On Site", "Remote", "Hybrid", or another kind of employment model - if mentioned, otherwise null."}}'
+    + '{"occupation_details":{"job_seniority": " "Internship", "Entry" (if no experience required), "Junior" (if 1-2 years required), "Mid", "Senior", "Director/Executive" level (if mentioned, eitherwise Mid level is the default value)","minimum_level_of_education": "Integer. The minimum level of education required, that matches the ISCED definition. Not the level that will be considered as an advantage","employment_type": "[optional] Choose "Full-time", "Part-time", or something else. If not available the output is "Null".","employment_model": "[optional] Choose "On Site", "Remote", "Hybrid", or another kind of employment model - if mentioned, otherwise null."}}'
     + "Ensure to output the exact JSON format without any additional explanations!")
     
     output_experience_and_employment_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_and_employment_classification))
@@ -578,7 +571,6 @@ def job_rag_pipeline(driver):
     return 
 
 
-
 """ ----------------- TESTING STUFF ----------------- """
 # nuke_neo4j_db()
 # reset_imported_status()
@@ -603,3 +595,4 @@ def job_rag_pipeline(driver):
 
 
 # job_rag_pipeline(driver)
+

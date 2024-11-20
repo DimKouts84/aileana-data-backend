@@ -226,10 +226,10 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         'job_title': job_data['job_title'],
         'job_reference': job_reference,
         'standardized_occupation': job_data['isco_name'],
-        'job_seniority': job_data['occuation_details']['job_seniority'],
-        'minimum_level_of_education': job_data['occuation_details']['minimum_level_of_education'],
-        'employment_type': job_data['occuation_details'].get('employment_type', None),
-        'employment_model': job_data['occuation_details'].get('employment_model', None),
+        'job_seniority': job_data['occupation_details']['job_seniority'],
+        'minimum_level_of_education': job_data['occupation_details']['minimum_level_of_education'],
+        'employment_type': job_data['occupation_details'].get('employment_type', None),
+        'employment_model': job_data['occupation_details'].get('employment_model', None),
         'country': country,
         'job_description_text': job_description_text
     }
@@ -258,18 +258,34 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         """
         session.run(job_skill_rel_query, job_title=job_data['job_title'], skill_name=skill['skills_name'])
 
-    # Create EXPERIENCE node and relationship
-    experience_query = """
-    MERGE (e:EXPERIENCE {minimum_years: $minimum_years})
-    ON CREATE SET e.years_required = $years_required
-    """
-    session.run(experience_query, minimum_years=job_data['experience']['years_of_experience'], years_required=job_data['experience']['experience_required'])
+    # Prepare parameters
+    params = {
+        'years_required': job_data['experience']['experience_required'],
+        'job_title': job_data['job_title'],
+    }
 
-    job_experience_rel_query = """
-    MATCH (j:JOB {job_title: $job_title}), (e:EXPERIENCE {minimum_years: $minimum_years})
+    # Start building the Cypher query
+    experience_properties = "years_required: $years_required"
+
+    # Conditionally add 'minimum_years' to properties if it's not null
+    if job_data['experience']['years_of_experience'] is not None:
+        experience_properties += ", minimum_years: $minimum_years"
+        params['minimum_years'] = job_data['experience']['years_of_experience']
+
+    experience_query = f"""
+    MERGE (e:EXPERIENCE {{{experience_properties}}})
+    """
+
+    session.run(experience_query, **params)
+
+    # Create relationship between JOB and EXPERIENCE
+    job_experience_rel_query = f"""
+    MATCH (j:JOB {{job_title: $job_title}}), (e:EXPERIENCE {{{experience_properties}}})
     MERGE (j)-[:REQUIRES]->(e)
     """
-    session.run(job_experience_rel_query, job_title=job_data['job_title'], minimum_years=job_data['experience']['years_of_experience'])
+    
+    session.run(job_experience_rel_query, **params)
+    
 
     # Create BENEFIT nodes and relationships
     for benefit in job_data['benefits']:
