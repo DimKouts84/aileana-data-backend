@@ -420,6 +420,10 @@ def process_jobs_and_import_to_graphDB(driver, country):
     # Get all the jobs that are not imported to the Graph DB
     all_job_not_into_graphDB = get_jobs_not_imported_to_neo4j()
     
+    if not all_job_not_into_graphDB:
+        print("No jobs to process.")
+        return
+    
     # The system prompt to be used for the LLM model
     current_model = lmstudio_model  # For Ollama or OpenAI a specific model named must be passed. for LMStudio is not necessary.
 
@@ -427,32 +431,25 @@ def process_jobs_and_import_to_graphDB(driver, country):
         # Loop through all the jobs that are not imported to the Graph DB and import them
         for job_data in all_job_not_into_graphDB:
             print(job_data, "\n")
-            # print(f"Job with {job_data['job_reference']}")
-            # print(f"Job description: {job_data['job_description']}\n")
-            retry_count, max_retries = 0, 10
-            while retry_count < max_retries:
+            max_retries = 10
+            for retry_count in range(max_retries):
                 try:
-                    job_data = job_data_preprocessing_extraction_classification(current_model, job_data)
+                    processed_job = job_data_preprocessing_extraction_classification(current_model, job_data)
                     
-                    # VALIDATE THE JOB DATA
-                    if validate_job_listing(job_data):
+                    if validate_job_listing(processed_job):
                         print("Job data is valid!\n")
                     else:
                         print("Job data is invalid!\n")
                         break
                     
-                    # Import the job data to the Neo4j database if the process was successful
-                    import_job_data_to_neo4j(session, job_data, job_data['job_reference'], country, job_data['job_description'])
-                    break  # Break out of the retry loop if successful
+                    import_job_data_to_neo4j(session, processed_job, processed_job['job_reference'], country, processed_job['job_description'])
+                    break
                 except Exception as e:
                     error_message = str(e)
-                    print(f"Error Message: {error_message}\n !")
+                    print(f"Error Message: {error_message}\n!")
                     logging.error(f"Error processing job {job_data['job_reference']} | {error_message}")
-                    retry_count += 1
-
-            if retry_count == max_retries:
-                print(f"Failed to process job {job_data['job_reference']} all times.")
-
+            else:
+                print(f"Failed to process job {job_data['job_reference']} after {max_retries} attempts.")
 
 
 # ----------------- Embedding data and populating databases ----------------- #
