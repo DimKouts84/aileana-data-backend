@@ -345,8 +345,18 @@ def reset_imported_status():
     conn.commit()
     conn.close()
 
+# An SQL query to delete job listings where the description is empty
+def delete_empty_job_listings():
+    cur, conn = connect_pg_conn(host, database, username, password)
+    cur.execute("""
+        DELETE FROM job_listings
+        WHERE job_description IS NULL OR job_description = ''
+    """)
+    conn.commit()
+    conn.close()
 
 # ----------------- Testing and debugging ----------------- #
 # print(get_embedding("This is a test"))
 # nuke_neo4j_db()
 # reset_imported_status()
+# delete_empty_job_listings()

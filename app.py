@@ -30,7 +30,6 @@ get_jobs_without_description_scrape_and_translate()
 # nuke_neo4j_db()
 # reset_imported_status()
 
-
 # Get all the jobs that are not imported to the Graph DB, process and import them to the Graph DB
 process_jobs_and_import_to_graphDB(driver, country="Cyprus")
 

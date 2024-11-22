@@ -84,7 +84,7 @@ class certifications(BaseModel):
     certification_name: str
 
 class academic_degree(BaseModel):
-    academic_degree_name: str
+    academic_degree_type: str
     academic_degree_field: str  
     
 class experience(BaseModel):
@@ -222,6 +222,10 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     # Alternatively Ollama can be used by changing the function call to call_ollama_JSON. LMStudio does not specific parameters for the model, just have a dummy model name.
     # print(f"Job description -->\n{db_job_data[0]}\n{db_job_data[1]}\n\n")
     
+    # Maximum number of attempts to classify the data
+    max_attempts = 5
+    attempt = 0
+    
     system_prompt = open_prompt_files("data/prompts/system_prompt_extract_data.txt")
 
     #---------------------- Data preprocessing and extraction for Industry Data ----------------------#
@@ -241,7 +245,8 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + f" *** The company information is the following *** {summarization_industry}:\n"
     + 'Your outpout must follow the JSON template:'
     + '{"industry": {"industry_name":"A title of the industry","NACE_standardized_name":"The NACE title from the list that matches the company industry"}}'
-    + "Ensure to output EXACTLY the JSON format without any additional explanations!")
+    + "Ensure to output EXACTLY the JSON format without any additional explanations!"
+    + "Ensure that you choose the NACE title that matches the company industry best.")
     
     # Read the NACE classification and loop until the correct classification is made based on the job description
     while True:
@@ -254,7 +259,8 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
             print(f"The NACE Level I classification {output_industry_classification_lvl_I['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
             # output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
             continue
-        
+                
+    
     #---------------------- Data preprocessing and extraction for Industry Subcategory Data ----------------------#
     NACE_standardized_subcategory_list = json.loads(open_prompt_files(r'data\prompts\NACE_Classification_Tree.json')) # [output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
     NACE_standardized_subcategories = NACE_standardized_subcategory_list[output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
@@ -371,7 +377,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Do not include skills or past work experience in this section."
     + "If multiple certifications, degrees or fields of study are mentioned, then they must have all be classified individually."
     + "Your output must follow the JSON template:\n"
-    + '{"certifications": [{"certification_name": "Certification Name"}], "academic_degree": [{"academic_degree": "Title of Degree (e.g. Bachelors, Masters, PhD, etc)", "academic_degree_field": "Degree Field"}]}'
+    + '{"certifications": [{"certification_name": "Certification Name"}], "academic_degree": [{"academic_degree_type": "The academic degree type (e.g. Bachelors, Masters, PhD, etc)", "academic_degree_field": "The Field of Study for the degree"}]}'
     + "Ensure to output the exact JSON format without any additional explanations!")
     
     output_degrees_and_qualifications_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_degrees_and_qualifications_classification))
@@ -557,10 +563,11 @@ def job_rag_pipeline(driver):
         for record in result:
             job_reference = record["job_reference"]
             print(f"Processing job {job_reference}...")
-            # Create the embeddings with LMStudio
+            
+            ''' LMStudio Embeddings'''
             embedding = create_lmstudio_embeddings_data_with_retries(record, lmstudio_embedding_model)
-            # ''' ~ OR ~ '''
-            # Create the embeddings with Ollama
+            
+            ''' Ollama Embeddings '''
             # embedding = create_ollama_embeddings_data_with_retries(record, "bge-m3:latest")
             
             # Add the embeddings to the Neo4j DB
@@ -571,7 +578,7 @@ def job_rag_pipeline(driver):
     return 
 
 
-""" ----------------- TESTING STUFF ----------------- """
+""" ----------------- TESTING ----------------- """
 # nuke_neo4j_db()
 # reset_imported_status()
 
