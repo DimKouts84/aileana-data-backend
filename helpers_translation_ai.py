@@ -42,9 +42,9 @@ def translate_job_listings(job_listings):
                         ''',
                     }
                 ],
-                model="llama3-70b-8192",
-                # models= "llama3-70b-8192" or "mixtral-8x7b-32768"
-                temperature=0.1,
+                model="llama-3.1-70b-versatile",
+                # models= "llama-3.1-70b-versatile","llama3-70b-8192" or "mixtral-8x7b-32768"
+                temperature=0,
             )
             translated_title = str(chat_completion.choices[0].message.content)
             

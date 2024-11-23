@@ -60,8 +60,10 @@ lmstudio_embedding_model = "text-embedding-bge-m3"
 
 # Confifgure the logger and the timestamp
 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-logging.basicConfig(filename='error_log.txt', level=logging.ERROR, 
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='loggs_helper_llm.txt', 
+                    level=logging.ERROR, 
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[logging.FileHandler("loggs_helpers_sqldb.log"), logging.StreamHandler()])
 
 
 #  -----------------   Pydantic Models for Data Validation    ----------------- #
@@ -82,11 +84,11 @@ class skills(BaseModel):
     skills_type: str
 
 class certifications(BaseModel):
-    certification_name: str
+    certification_name: Optional[str] = None
 
 class academic_degree(BaseModel):
-    academic_degree_type: str
-    academic_degree_field: str  
+    academic_degree_type: Optional[str] = None
+    academic_degree_field: Optional[str] = None  
     
 class experience(BaseModel):
     experience_required: bool
@@ -209,10 +211,10 @@ def call_lmstudio_JSON(model, system_prompt, user_prompt_for_parsing):
 def validate_job_listing(data: dict) -> bool:
     try:
         data = JobListing(**data)
-        print("Validation successful!")
+        # print("Validation successful!")
         return True
     except ValidationError as e:
-        print("\n --------- Validation failed !!!  ---------\n")
+        # print("\n --------- Validation failed !!!  ---------\n")
         logging.error(f"Validation error: {e.json()}")
         return False
 
@@ -240,6 +242,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     
     NACE_standardized_industry_title = [title.strip().strip('"').strip('\n') for title in open_prompt_files(r'data\prompts\standard_NACE.txt').strip('[]').split(',\n')]
     # print("NACE Standardized Industry Titles: ", NACE_standardized_industry_title,"\n")
+    
     user_prompt_industry_data_classification = (f" Read the information provided for a company and the industry it operates in. "
     + "You will have to provide the the NACE industry title, from the list provided below."
     + "The NACE Standards Clasicifation List is here: "+ str(NACE_standardized_industry_title  )  
@@ -250,17 +253,17 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Ensure that you choose the NACE title that matches the company industry best.")
     
     # Read the NACE classification and loop until the correct classification is made based on the job description
-    while True:
+    for attempt in range(3):
         output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
         
         if output_industry_classification_lvl_I['industry']['NACE_standardized_name'] in NACE_standardized_industry_title:
-            print("The NACE Level I classification is: ", output_industry_classification_lvl_I, "\n\n")
+            print("~~ The NACE Level I classification is: ", output_industry_classification_lvl_I)
             break
         else:
-            print(f"The NACE Level I classification {output_industry_classification_lvl_I['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
+            print(f"~~ The NACE Level I classification {output_industry_classification_lvl_I['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
             # output_industry_classification_lvl_I = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_data_classification))
             continue
-                
+
     
     #---------------------- Data preprocessing and extraction for Industry Subcategory Data ----------------------#
     NACE_standardized_subcategory_list = json.loads(open_prompt_files(r'data\prompts\NACE_Classification_Tree.json')) # [output_industry_classification_lvl_I['industry']['NACE_standardized_name']]
@@ -276,17 +279,18 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Ensure to output EXACTLY the JSON format without any additional explanations!")
 
     # Read the NACE classification with subcategories and loop until the correct classification of the subcategory is made based on the job description
-    while True:
-        output_industry_classification_lvl_II = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_subcategory_classification))
+    for attempt in range(3):
         
+        output_industry_classification_lvl_II = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_subcategory_classification))
         if output_industry_classification_lvl_II['industry']['NACE_standardized_name'] in NACE_standardized_subcategories:
-            print("The NACE Level II classification is: ", output_industry_classification_lvl_II, "\n\n")
+            print("~~ The NACE Level II classification is: ", output_industry_classification_lvl_II)
             break
         else:
-            print(f"The NACE Level II classification {output_industry_classification_lvl_II['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
+            print(f"~~ The NACE Level II classification {output_industry_classification_lvl_II['industry']['NACE_standardized_name']} is incorrect. Please classify the NACE industry again.")
             # output_industry_classification_lvl_II = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_industry_subcategory_classification))
             continue
 
+        
     #---------------------- Data preprocessing and extraction for Main Job Data ----------------------#
     user_prompt_for_job_title_summarization = ("You will read the description of a job posting. "
     +"Then you will summarize the description of the job in a sentence."
@@ -294,7 +298,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     +'Your output must follow the JSON template: {"job_title_description":"The job title summarization in a sentence"}'
     +"Ensure to output ONLY in JSON format without any additional explanations!")
     
-    summarization_of_job_title = call_lmstudio_JSON(model, system_prompt, user_prompt_for_job_title_summarization)
+    summarization_of_job_title = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_job_title_summarization))
     # print("The job title summarization is: ", summarization_of_job_title, "\n")
     
     user_prompt_for_job_title = ("You will receive information about the job title of a job posting."
@@ -316,15 +320,15 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     +"The job title is the following: "+ str(summarization_of_job_title) +"\n"
     +'Your output must follow the JSON template: {"isco_name":"The ISCO title from the provided list"}'
     +"Ensure that you choose the correct ISCO title in JSON format without any additional explanations."
-    +"Ensure that you choose an ISCO title that matches the job job description.")
+    +"The output must ONLY be an ISCO title that matches the job job description. Do not output Anything else except and ISCO Title")
     
-    while True:
+    for attempt in range(3):
         output_ISCO_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_ISCO_classification))
         if output_ISCO_classification['isco_name'] in ISCO_standardized_occupation_title:
-            print("The ISCO classification is: ", output_ISCO_classification['isco_name'], "\n")
+            print("~~ The ISCO classification is: ", output_ISCO_classification)
             break
         else:
-            print(f"The ISCO classification {output_ISCO_classification['isco_name']} is incorrect. Retrying...")
+            print(f"~~ The ISCO classification {output_ISCO_classification['isco_name']} is incorrect. Retrying... (Attempt {attempt + 1}/3)")
             time.sleep(1)  # Optional: Add small delay between retries
             continue
 
@@ -332,23 +336,23 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     user_prompt_for_experience_and_employment = ("You will read the description of a job posting."
     +"Then you will summarize, in one sentence: a) how many years experience is required for this job, b) what type of employment is offered (full time, part-time, remote, hybrid etc) c) the education level and degree required for this job."
     +'Your output must follow the JSON template: {"experience_and_employment":"Summarization of the minimum years of experience required, educational level or degrees required and the employment type. The output must be in one sentence"}'
-    +"Ensure to output ONLY in JSON format without any additional explanations!"
+    +"Ensure to output EXACTLY the JSON format without any additional explanations!"
     +"Here is the job description: "+ str(db_job_data))
     
     summarization_of_experience_and_employment = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_and_employment))    
     
     ISCED_stabdardized_occupation_title = [open_prompt_files(r'data\prompts\standard_ISCED.txt')]
-    user_prompt_for_experience_and_employment_classification = ("You will receive information about the experience required and employment type of a job posting."
+    user_prompt_for_employment_seniority_educationalLevel_classification = ("You will receive information about the experience required and employment type of a job posting."
     + "You will A) Read the information provided B) classify the job seniority C) classify the minimum level of education required based on ISCED"
     + "D) employment Type and E) employment model for this job.\n"
     + "The job information is the following: "+ str(summarization_of_experience_and_employment)
     + " *** The ISCED Standard to choose from are here: *** :" + str(ISCED_stabdardized_occupation_title)
     + "Your output must follow the JSON template:\n"
     + '{"occupation_details":{"job_seniority": " "Internship", "Entry" (if no experience required), "Junior" (if 1-2 years required), "Mid", "Senior", "Director/Executive" level (if mentioned, eitherwise Mid level is the default value)","minimum_level_of_education": "Integer. The minimum level of education required, that matches the ISCED definition. Not the level that will be considered as an advantage","employment_type": "[optional] Choose "Full-time", "Part-time", or something else. If not available the output is "Null".","employment_model": "[optional] Choose "On Site", "Remote", "Hybrid", or another kind of employment model - if mentioned, otherwise null."}}'
-    + "Ensure to output the exact JSON format without any additional explanations!")
+    + "Ensure to output EXACTLY the JSON format without any additional explanations!")
     
-    output_experience_and_employment_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_and_employment_classification))
-    print("The experience and employment classification is: ", output_experience_and_employment_classification, "\n\n")
+    output_employment_seniority_educationalLevel_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_employment_seniority_educationalLevel_classification))
+    print("~~ The experience and employment classification is: ", output_employment_seniority_educationalLevel_classification)
 
 
     #---------------------- Data preprocessing and extraction for Skills, Education Degree and Qualifications Data ----------------------#
@@ -356,7 +360,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Then you will summarize the skills and qualifications required for this job."
     + "Here is the job description: "+ str(db_job_data)
     + 'Your output must follow the JSON template: {"skills_and_qualifications":"Summary of the skills, types of skills and other requirements for the job"}'
-    + "Ensure to output ONLY in JSON format without any additional explanations!")
+    +"Ensure to output EXACTLY the JSON format without any additional explanations!")
     
     summarization_of_skills_and_qualifications = call_lmstudio_JSON(model, system_prompt, user_prompt_for_skills_and_qualifications_summarization)
     # print("The skills and qualifications summarization is: ", summarization_of_skills_and_qualifications, "\n\n")
@@ -367,10 +371,10 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Do not include degrees and Certificates in this section."
     + "Your output must follow the JSON template:\n"
     + '{"skills": [{"skills_category": "Either `Soft Skill` or `Hard Skill`", "skills_name": "The name of each individual skill mentioned. The name must be brief, from 1 to 3 words. Each knowledge of languages, software or similar must be classified separately", "skills_type": "`Technical skills`, `Programming Languages`, `Software`, `Professional` or `Drivers Licence`, `Personality Trait` and others should be included here. Each skill must have an individual record in the list"}]}'
-    + "Ensure to output the exact JSON format without any additional explanations!")
+    +"Ensure to output EXACTLY the JSON format without any additional explanations!")
 
     output_skills_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_skills_classification))
-    print("The skills classification is: ", output_skills_classification, "\n\n")
+    print("~~ The skills classification is: ", output_skills_classification)
     
     user_prompt_for_degrees_and_qualifications_classification = ("You will receive information about the degrees and qualifications required for a job posting."
     + "You will A) Read the information provided B) classify the degrees and qualifications required for this job."
@@ -379,48 +383,59 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "If multiple certifications, degrees or fields of study are mentioned, then they must have all be classified individually."
     + "Your output must follow the JSON template:\n"
     + '{"certifications": [{"certification_name": "Certification Name"}], "academic_degree": [{"academic_degree_type": "The academic degree type (e.g. Bachelors, Masters, PhD, etc)", "academic_degree_field": "The Field of Study for the degree"}]}'
-    + "Ensure to output the exact JSON format without any additional explanations!")
+    +"Ensure to output EXACTLY the JSON format without any additional explanations!")
     
     output_degrees_and_qualifications_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_degrees_and_qualifications_classification))
-    print("The degrees and qualifications classification is: ", output_degrees_and_qualifications_classification, "\n\n")
+    print("~~ The degrees and qualifications classification is: ", output_degrees_and_qualifications_classification)
 
-    # Experience, Benefits, and Responsibilities
+    #---------------------- Data preprocessing and extraction for Experience, Benefits, and Responsibilities  ----------------------#
     user_prompt_for_summarization_of_experience_responsibilities_benefits = ("You will read the description of a job posting."
     + "Then you will summarize the experience required, the employee benefits and the employee responsibilities for this job."
     + "Here is the job description: "+ str(db_job_data)
-    + "Your output must follow the JSON template: {'experience_and_responsibilities':'Summary of all the experience required, benefits and responsibilities from the job text provided'}"
-    + "Ensure to output ONLY in JSON format without any additional explanations!")
+    + "Your output must follow the JSON template: {'experience_benefits_and_responsibilities':'Summary of all the experience required, benefits and responsibilities from the job text provided'}"
+    +"Ensure to output EXACTLY the JSON format without any additional explanations!")
     
     summarization_of_experience_responsibilities_benefits = call_lmstudio_JSON(model, system_prompt, user_prompt_for_summarization_of_experience_responsibilities_benefits)
-    
-    user_prompt_for_experience_responsibilities_benefits_classification = ("You will receive information about the benefits of a job posting."
-    + "You will A) Read the information provided B) classify the benefits of this job."
-    + "The job information is the following: "+ str(summarization_of_experience_responsibilities_benefits)
-    + "Your output must follow the JSON template:\n"
-    + '{"experience": {"experience_required": The minimum years of experience required as a boolean value - if experience is required or not, "years_of_experience": The minimum years of experience required as an integer - if mentioned}, "benefits": [{"benefit_name": "The description of the benefit mentioned in the job listing. VERY brief description, 1 to 4 words."}], "responsibilities": [{"responsibility_name": "The description of the responsibility mentioned in the job listing. VERY brief description, 1 to 4 words."}]}'
-    + "Ensure to output the exact JSON format without any additional explanations!")
-    
-    output_benefits_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_responsibilities_benefits_classification))
-    print("The benefits classification is: ", output_benefits_classification, "\n\n")   
+
+    user_prompt_for_experience_responsibilities_benefits_classification = (
+    "You will receive information about the benefits of a job posting."
+    " You will: "
+    "A) Read the information provided. "
+    "B) Classify the experience required of this job, if any. "
+    "C) Classify the benefits offered by the employer, if any. "
+    "D) Classify the responsibilities of the employee, if any. "
+    "The job information is the following: " + str(summarization_of_experience_responsibilities_benefits) +
+    " Your output must follow the JSON template: "
+    '{"experience": {"experience_required": "[boolean] The minimum years of experience required as a boolean value - if experience is required or not", '
+    '"years_of_experience": "The minimum years of experience required as an integer - if mentioned"}, '
+    '"benefits": [{"benefit_name": "The description of the benefit mentioned in the job listing. VERY brief description, 1 to 4 words."}], '
+    '"responsibilities": [{"responsibility_name": "The description of the responsibility mentioned in the job listing. VERY brief description, 1 to 4 words."}]} '
+    "Ensure to output EXACTLY the JSON format without any additional explanations!"
+    )
+
+    output_experience_benefits_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_responsibilities_benefits_classification))
+    print("~~ The benefits classification is: ", output_experience_benefits_classification)
+
 
     # Combine all JSON outputs into a single JSON object
     final_output_data_extracted_classified = {
-        "job_reference": db_job_data["job_reference"], 
-        "job_description": db_job_data["job_description"], 
-        **output_industry_classification_lvl_II, 
-        **output_job_title, 
-        **output_ISCO_classification, 
-        **output_experience_and_employment_classification, 
-        **output_skills_classification, 
-        **output_degrees_and_qualifications_classification, 
-        **output_benefits_classification}
-
+        "job_reference": db_job_data["job_reference"],
+        "job_description": db_job_data["job_description"],
+        **output_industry_classification_lvl_II,
+        **output_job_title,
+        **output_ISCO_classification,
+        **output_employment_seniority_educationalLevel_classification,
+        **output_skills_classification,
+        **output_degrees_and_qualifications_classification,
+        **output_experience_benefits_classification,
+    }
     # print(final_output_data_extracted_classified)
     
     with open(f'final_output_data_extractedclassified_test.json', 'w', encoding='utf-8') as f:
         json.dump(final_output_data_extracted_classified, f, ensure_ascii=False, indent=4)
 
     return final_output_data_extracted_classified
+
 
 """ ----------------- Job Data Processing and importing to Graph Database ----------------- """
 def process_jobs_and_import_to_graphDB(driver, country):
@@ -444,17 +459,19 @@ def process_jobs_and_import_to_graphDB(driver, country):
                     processed_job = job_data_preprocessing_extraction_classification(current_model, job_data)
                     
                     if validate_job_listing(processed_job):
-                        print("Job data is valid!\n")
+                        print("--------- Job data is valid! --------- \n")
                     else:
-                        print("Job data is invalid!\n")
+                        print("--------- Job data is invalid! ---------\n")
                         break
                     
                     import_job_data_to_neo4j(session, processed_job, processed_job['job_reference'], country, processed_job['job_description'])
+                    print(f"--------- Job {job_data['job_reference']} processed and imported to the Graph DB.\n\n")
                     break
                 except Exception as e:
                     error_message = str(e)
                     print(f"Error Message: {error_message}\n!")
                     logging.error(f"Error processing job {job_data['job_reference']} | {error_message}")
+
             else:
                 print(f"Failed to process job {job_data['job_reference']} after {max_retries} attempts.")
 

@@ -1,6 +1,13 @@
-import psycopg2, os, json, requests
+import psycopg2, os, json, requests, logging, datetime
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
+
+# Configuration for logging
+timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler("loggs_helpers_sqldb.log"), logging.StreamHandler()])
 
 load_dotenv(override=True)
 
@@ -194,7 +201,7 @@ def create_relationship_skill_and_responsibilities_in_neo4j(structured_job_data)
                 + f"Example JSON output template: {{ 'cypher_query': 'the cypher query as one string'}}\n"
                 )
 
-  
+
     cypher_for_skill_and_responsibility_relationships = call_groq_JSON("llama3-70b-8192", system_prompt, user_prompt)
     # Parse the JSON string to a dictionary if it's not already one
     cypher_query_for_relationships = json.loads(cypher_for_skill_and_responsibility_relationships)
@@ -238,11 +245,15 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
 
     # Create relationship between INDUSTRY and JOB nodes based on their standardized classifications
     industry_job_rel_query = """
-    MATCH (i:INDUSTRY {standardized_industry_name: $standardized_industry_name}), (j:JOB {standardized_occupation: $standardized_occupation})
-    MERGE (i)-[:POSTS]->(j)
-    """
-    session.run(industry_job_rel_query, standardized_industry_name=job_data['industry']['NACE_standardized_name'], standardized_occupation=job_data['isco_name'])
-
+        MATCH (i:INDUSTRY {standardized_industry_name: $standardized_industry_name})
+        MATCH (j:JOB {standardized_occupation: $standardized_occupation})
+        MERGE (i)-[:POSTS]->(j)
+        """
+    session.run(
+        industry_job_rel_query,
+        standardized_industry_name=job_data['industry']['NACE_standardized_name'],
+        standardized_occupation=job_data['isco_name']
+    )
 
     # Create SKILL nodes and relationships
     for skill in job_data['skills']:
@@ -253,10 +264,15 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         session.run(skill_query, skill_name=skill['skills_name'], skill_category=skill['skills_category'], skill_type=skill['skills_type'])
 
         job_skill_rel_query = """
-        MATCH (j:JOB {job_title: $job_title}), (s:SKILL {skill_name: $skill_name})
-        MERGE (j)-[:NEEDS]->(s)
-        """
-        session.run(job_skill_rel_query, job_title=job_data['job_title'], skill_name=skill['skills_name'])
+            MATCH (j:JOB {job_title: $job_title})
+            MATCH (s:SKILL {skill_name: $skill_name})
+            MERGE (j)-[:NEEDS]->(s)
+            """
+        session.run(
+            job_skill_rel_query,
+            job_title=job_data['job_title'],
+            skill_name=skill['skills_name']
+        )
 
     # Prepare parameters
     params = {
@@ -280,7 +296,8 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
 
     # Create relationship between JOB and EXPERIENCE
     job_experience_rel_query = f"""
-    MATCH (j:JOB {{job_title: $job_title}}), (e:EXPERIENCE {{{experience_properties}}})
+    MATCH (j:JOB {{job_title: $job_title}})
+    MATCH (e:EXPERIENCE {{{experience_properties}}})
     MERGE (j)-[:REQUIRES]->(e)
     """
     
@@ -295,7 +312,8 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         session.run(benefit_query, benefit_name=benefit['benefit_name'])
 
         job_benefit_rel_query = """
-        MATCH (j:JOB {job_title: $job_title}), (b:BENEFIT {benefit_name: $benefit_name})
+        MATCH (j:JOB {job_title: $job_title})
+        MATCH (b:BENEFIT {benefit_name: $benefit_name})
         MERGE (j)-[:OFFERS]->(b)
         """
         session.run(job_benefit_rel_query, job_title=job_data['job_title'], benefit_name=benefit['benefit_name'])
@@ -308,19 +326,20 @@ def import_job_data_to_neo4j(session, job_data, job_reference, country, job_desc
         session.run(responsibility_query, description=responsibility['responsibility_name'])
 
         job_responsibility_rel_query = """
-        MATCH (j:JOB {job_title: $job_title}), (r:RESPONSIBILITY {description: $description})
+        MATCH (j:JOB {job_title: $job_title})
+        MATCH (r:RESPONSIBILITY {description: $description})
         MERGE (j)-[:HAS]->(r)
         """
         session.run(job_responsibility_rel_query, job_title=job_data['job_title'], description=responsibility['responsibility_name']) 
     
-    
     # Now we create the relationship between the SKILLS and RESPONSIBILITIES and write the Cypher query to insert the data into a Neo4j database.
     # for relationship in create_relationship_skill_and_responsibilities_in_neo4j(job_data):
     #     session.run(relationship)
-    
+
     # Update the PostgreSQL database to mark the job as imported to Neo4j and close the connection
     update_job_as_imported(job_reference)
     driver.close()
+
 
 
 '''  !!!!!!!!!!!!     CAUTION    !!!!!!!!!!!!'''
