@@ -63,7 +63,7 @@ timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 logging.basicConfig(filename='loggs_helper_llm.txt', 
                     level=logging.ERROR, 
                     format='%(asctime)s - %(levelname)s - %(message)s',
-                    handlers=[logging.FileHandler("loggs_helpers_sqldb.log"), logging.StreamHandler()])
+                    handlers=[logging.FileHandler("loggs_helpers_llm_main.log"), logging.StreamHandler()])
 
 
 #  -----------------   Pydantic Models for Data Validation    ----------------- #
@@ -459,9 +459,9 @@ def process_jobs_and_import_to_graphDB(driver, country):
                     processed_job = job_data_preprocessing_extraction_classification(current_model, job_data)
                     
                     if validate_job_listing(processed_job):
-                        print("--------- Job data is valid! --------- \n")
+                        print("--------- Job data is valid! ---------")
                     else:
-                        print("--------- Job data is invalid! ---------\n")
+                        print("--------- Job data is invalid! ---------")
                         break
                     
                     import_job_data_to_neo4j(session, processed_job, processed_job['job_reference'], country, processed_job['job_description'])
@@ -469,11 +469,11 @@ def process_jobs_and_import_to_graphDB(driver, country):
                     break
                 except Exception as e:
                     error_message = str(e)
-                    print(f"Error Message: {error_message}\n!")
+                    print(f"Error Message: {error_message}!")
                     logging.error(f"Error processing job {job_data['job_reference']} | {error_message}")
 
             else:
-                print(f"Failed to process job {job_data['job_reference']} after {max_retries} attempts.")
+                print(f"Failed to process job {job_data['job_reference']} after {max_retries} attempts.\n\n")
 
 
 # ----------------- Embedding data and populating databases ----------------- #
@@ -578,13 +578,14 @@ def job_rag_pipeline(driver):
     """
     with driver.session() as session:
         result = session.run(query)
+        
         for record in result:
             job_reference = record["job_reference"]
             print(f"Processing job {job_reference}...")
             
             ''' LMStudio Embeddings'''
             embedding = create_lmstudio_embeddings_data_with_retries(record, lmstudio_embedding_model)
-            
+
             ''' Ollama Embeddings '''
             # embedding = create_ollama_embeddings_data_with_retries(record, "bge-m3:latest")
             

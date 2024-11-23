@@ -1,3 +1,4 @@
+-- SELECT COUNT(*) FROM job_listings WHERE imported IS NOT NULL
 -- Update job_listings set imported = null;
 
 -- SELECT COUNT(*) FROM job_listings WHERE imported IS NULL;
