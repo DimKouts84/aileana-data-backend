@@ -12,6 +12,7 @@ from helpers_sqldb import get_jobs_not_imported_to_neo4j, import_job_data_to_neo
 
 load_dotenv(override=True)
 
+
 #  -----------------     Variables    ----------------- #
 country = "Cyprus"
 random_number = random.uniform(3, 6)
@@ -414,7 +415,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
         **output_degrees_and_qualifications_classification, 
         **output_benefits_classification}
 
-    # print(final_output_data_extractedclassified)
+    # print(final_output_data_extracted_classified)
     
     with open(f'final_output_data_extractedclassified_test.json', 'w', encoding='utf-8') as f:
         json.dump(final_output_data_extracted_classified, f, ensure_ascii=False, indent=4)
@@ -437,7 +438,7 @@ def process_jobs_and_import_to_graphDB(driver, country):
         # Loop through all the jobs that are not imported to the Graph DB and import them
         for job_data in all_job_not_into_graphDB:
             print(job_data, "\n")
-            max_retries = 10
+            max_retries = 3
             for retry_count in range(max_retries):
                 try:
                     processed_job = job_data_preprocessing_extraction_classification(current_model, job_data)
