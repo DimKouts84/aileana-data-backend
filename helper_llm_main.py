@@ -414,7 +414,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     )
 
     output_experience_benefits_classification = json.loads(call_lmstudio_JSON(model, system_prompt, user_prompt_for_experience_responsibilities_benefits_classification))
-    print("~~ The benefits classification is: ", output_experience_benefits_classification)
+    print("~~ The experience, benefits and responsibilities classification is: ", output_experience_benefits_classification)
 
 
     # Combine all JSON outputs into a single JSON object

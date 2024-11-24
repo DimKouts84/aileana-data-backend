@@ -7,4 +7,4 @@
 -- SELECT COUNT(*) FROM job_listings WHERE job_description = '';
 -- DELETE FROM job_listings WHERE job_description IS NULL OR job_description = '';
 
--- SELECT * FROM job_listings WHERE reference = 'REF. NUM: 260364';
+-- SELECT * FROM job_listings WHERE reference = 'REF. NUM: XXXXXX';
