@@ -48,7 +48,7 @@ driver = GraphDatabase.driver(neo4j_url, auth=(neo4j_user, neo4j_password))
 #### Available Cloud LLM API request URLs and models
 OpenRouter_completions_url = os.getenv("OPENROUTER_COMPLETIONS_URL")
 OpenRouter_API_key = os.getenv("OPENROUTER_API_KEY")
-llama_31_70_free, llama_31_405_free = 'meta-llama/llama-3.1-70B-instruct:free','meta-llama/llama-3.1-405b-instruct:free'
+llama_31_70_free, llama_31_405_free = 'meta-llama/llama-3.1-70b-instruct:free:free','meta-llama/llama-3.1-405b-instruct:free'
 
 #### Available Local (Ollama) request URLs and models
 ollama_embed_url = os.getenv("OLLAMA_EMBEDD_URL")
@@ -160,7 +160,7 @@ def call_ollama_JSON(model, system_prompt, user_prompt_for_parsing):
         {
             # "num_keep": 1, 
             # "top_p": 0.2,
-            "temperature": 0.1
+            "temperature": 0
             # "mirostat": 1,
             # "mirostat_tau": 0.1,  
             # "mirostat_eta": 0.1,
@@ -180,7 +180,7 @@ def call_ollama_JSON(model, system_prompt, user_prompt_for_parsing):
         return f"Error: {e} response from Ollama API."
 
 
-#---------- Function to call Local LLM using the LLM API in JSON mode (same request as OPENAI) ----------#
+#---------- Function to call Local or Cloud LLM API in JSON mode (same request as OPENAI API) ----------#
 def call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_parsing):
     # Note for Models that worked well, especially with the JSON mode:: 
     ## Models with the best quality of output:  lmstudio-community/Qwen2.5-14B-Instruct-Q4_K_M.gguf,  lmstudio-community/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
@@ -215,7 +215,7 @@ def call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_
         return response.json()['choices'][0]['message']['content']
     except requests.RequestException as e:
         print(f"Error: {e} response from LLM API.")
-        time.sleep(20)  # Optional: wait a bit before retrying
+        time.sleep(60)  # Optional: wait a bit before retrying
         return f"Error: {e} response from LLM API."
 
 
@@ -250,8 +250,9 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Your output must follow the JSON template: {'industry_summarization':'The description of the company and the industry this company operates in'}"
     + "Ensure to output ONLY in JSON format without any additional explanations!")
     
-    time.sleep(3)
+    time.sleep(59)
     summarization_industry = call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_industry_summarization)
+    print("The industry summarization is: ", summarization_industry, "\n")
     
     NACE_standardized_industry_title = [title.strip().strip('"').strip('\n') for title in open_prompt_files(r'data\prompts\standard_NACE.txt').strip('[]').split(',\n')]
     # print("NACE Standardized Industry Titles: ", NACE_standardized_industry_title,"\n")
@@ -267,7 +268,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     
     # Read the NACE classification and loop until the correct classification is made based on the job description
     for attempt in range(3):
-        time.sleep(3)
+        time.sleep(59)
         output_industry_classification_lvl_I = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_industry_data_classification))
         
         if output_industry_classification_lvl_I['industry']['NACE_standardized_name'] in NACE_standardized_industry_title:
@@ -294,7 +295,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
 
     # Read the NACE classification with subcategories and loop until the correct classification of the subcategory is made based on the job description
     for attempt in range(3):
-        time.sleep(3)
+        time.sleep(59)
         output_industry_classification_lvl_II = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_industry_subcategory_classification))
         
         if output_industry_classification_lvl_II['industry']['NACE_standardized_name'] in NACE_standardized_subcategories:
@@ -322,9 +323,9 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + 'Your output must follow the JSON template: {"job_title":"The job title"}'
     + "Ensure to output ONLY in JSON format without any additional explanations!")
     
-    time.sleep(3)
+    time.sleep(59)
     output_job_title = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_job_title))
-    # print("The job title is: ", output_job_title, "\n")
+    print("The job title is: ", output_job_title, "\n")
     
     # ISCO_standardized_occupation_title = open_ISCO_file(r'data\prompts\standard_ISCO.txt')
     ISCO_standardized_occupation_title = [title.strip('"') for title in open_prompt_files(r'data\prompts\standard_ISCO.txt').strip('[]').split(',\n')]
@@ -339,7 +340,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     +"The output must ONLY be an ISCO title that matches the job job description. Do not output Anything else except and ISCO Title")
     
     for attempt in range(3):
-        time.sleep(3)
+        time.sleep(59)
         output_ISCO_classification = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_ISCO_classification))
         
         if output_ISCO_classification['isco_name'] in ISCO_standardized_occupation_title:
@@ -357,8 +358,9 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     +"Ensure to output EXACTLY the JSON format without any additional explanations!"
     +"Here is the job description: "+ str(db_job_data))
     
-    time.sleep(3)
+    time.sleep(59)
     summarization_of_experience_and_employment = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_experience_and_employment))    
+    print("The experience and employment summarization is: ", summarization_of_experience_and_employment, "\n")
     
     ISCED_stabdardized_occupation_title = [open_prompt_files(r'data\prompts\standard_ISCED.txt')]
     user_prompt_for_employment_seniority_educationalLevel_classification = ("You will receive information about the experience required and employment type of a job posting."
@@ -370,7 +372,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + '{"occupation_details":{"job_seniority": " "Internship", "Entry" (if no experience required), "Junior" (if 1-2 years required), "Mid", "Senior", "Director/Executive" level (if mentioned, eitherwise Mid level is the default value)","minimum_level_of_education": "Integer. The minimum level of education required, that matches the ISCED definition. Not the level that will be considered as an advantage","employment_type": "[optional] Choose "Full-time", "Part-time", or something else. If not available the output is "Null".","employment_model": "[optional] Choose "On Site", "Remote", "Hybrid", or another kind of employment model - if mentioned, otherwise null."}}'
     + "Ensure to output EXACTLY the JSON format without any additional explanations!")
     
-    time.sleep(3)
+    time.sleep(59)
     output_employment_seniority_educationalLevel_classification = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_employment_seniority_educationalLevel_classification))
     print("~~ The experience and employment classification is: ", output_employment_seniority_educationalLevel_classification)
 
@@ -382,9 +384,9 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + 'Your output must follow the JSON template: {"skills_and_qualifications":"Summary of the skills, types of skills and other requirements for the job"}'
     +"Ensure to output EXACTLY the JSON format without any additional explanations!")
     
-    time.sleep(3)
+    time.sleep(59)
     summarization_of_skills_and_qualifications = call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_skills_and_qualifications_summarization)
-    # print("The skills and qualifications summarization is: ", summarization_of_skills_and_qualifications, "\n\n")
+    print("The skills and qualifications summarization is: ", summarization_of_skills_and_qualifications, "\n\n")
 
     user_prompt_for_skills_classification = ("You will receive information about the skills required for a job posting."
     + "You will A) Read the information provided B) classify the skills required for this job."
@@ -394,7 +396,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + '{"skills": [{"skills_category": "Either `Soft Skill` or `Hard Skill`", "skills_name": "The name of each individual skill mentioned. The name must be brief, from 1 to 3 words. Each knowledge of languages, software or similar must be classified separately", "skills_type": "`Technical skills`, `Programming Languages`, `Software`, `Professional`, `Drivers Licence`, `Personality Trait` and others should be included here. Each skill must have an individual record in the list"}]}'
     +"Ensure to output EXACTLY the JSON format without any additional explanations!")
 
-    time.sleep(3)
+    time.sleep(59)
     output_skills_classification = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_skills_classification))
     print("~~ The skills classification is: ", output_skills_classification)
     
@@ -407,7 +409,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + '{"certifications": [{"certification_name": "Certification Name"}], "academic_degree": [{"academic_degree_type": "The academic degree type (e.g. Bachelors, Masters, PhD, etc)", "academic_degree_field": "The Field of Study for the degree"}]}'
     +"Ensure to output EXACTLY the JSON format without any additional explanations!")
     
-    time.sleep(3)
+    time.sleep(59)
     output_degrees_and_qualifications_classification = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_degrees_and_qualifications_classification))
     print("~~ The degrees and qualifications classification is: ", output_degrees_and_qualifications_classification)
 
@@ -418,7 +420,7 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     + "Your output must follow the JSON template: {'experience_benefits_and_responsibilities':'Summary of all the experience required, benefits and responsibilities from the job text provided'}"
     +"Ensure to output EXACTLY the JSON format without any additional explanations!")
     
-    time.sleep(3)
+    time.sleep(59)
     summarization_of_experience_responsibilities_benefits = call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_summarization_of_experience_responsibilities_benefits)
 
     user_prompt_for_experience_responsibilities_benefits_classification = (
@@ -431,13 +433,13 @@ def job_data_preprocessing_extraction_classification(model, db_job_data):
     "The job information is the following: " + str(summarization_of_experience_responsibilities_benefits) +
     " Your output must follow the JSON template: "
     '{"experience": {"experience_required": "[boolean] The minimum years of experience required as a boolean value - if experience is required or not", '
-    '"years_of_experience": "The minimum years of experience required as an integer - if mentioned"}, '
+    '"years_of_experience": "[Integer] The minimum years of experience required. Outpute an integer,"}, '
     '"benefits": [{"benefit_name": "The description of the benefit mentioned in the job listing. VERY brief description, 1 to 4 words."}], '
     '"responsibilities": [{"responsibility_name": "The description of the responsibility mentioned in the job listing. VERY brief description, 1 to 4 words."}]} '
     "Ensure to output EXACTLY the JSON format without any additional explanations!"
     )
 
-    time.sleep(3)
+    time.sleep(59)
     output_experience_benefits_classification = json.loads(call_LLM_API_JSON(provider_model_to_be_used, system_prompt, user_prompt_for_experience_responsibilities_benefits_classification))
     print("~~ The experience, benefits and responsibilities classification is: ", output_experience_benefits_classification)
 
@@ -484,15 +486,15 @@ def process_jobs_and_import_to_graphDB(driver, country):
                     processed_job = job_data_preprocessing_extraction_classification(current_model, job_data)
                     
                     if validate_job_listing(processed_job):
-                        print("--------- Job data is valid! ---------")
+                        print("--------- Job data is valid! ---------\n")
                     else:
-                        print("--------- Job data is invalid! ---------")
+                        print("--------- Job data is invalid! ---------\n")
                         break
                     
                     import_job_data_to_neo4j(session, processed_job, processed_job['job_reference'], country, processed_job['job_description'])
                     print(f"--------- Job {job_data['job_reference']} processed and imported to the Graph DB.\n\n")
                     # wait a bit before processing the next job
-                    time.sleep(3)
+                    time.sleep(61)
                     break
                 except Exception as e:
                     error_message = str(e)
