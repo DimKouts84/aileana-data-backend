@@ -1,42 +1,12 @@
-# Aileana
+# Aileana - Data Extraction
 
-> **Navigating the job market one prompt at a time** .
+> **The data extraction and classification framework for the Aileana application [found here](https://github.com/DimKouts84/aileana_frontend) **
 
 <br>
-
-**Aileana** is an advanced LLM chatbot with a comprehensive understanding of the job market, designed to help individuals navigate their career paths and keep professionals updated on the latest market trends.
-
-Aileana excels at identifying and correlating  *jobs* ,  *skills* ,  *requirements* ,  *benefits* ,  *required experience* , and  *responsibilities* . Utilizing agentic workflows from state-of-the-art LLMs and Retrieval-Augmented Generation (RAG), she enhances accuracy and reliability with data sourced from recent and relevant information. The Knowledge Graph database allows the models to perform more detailed queries and deeper analysis than traditional vector embeddings in SQL databases.
+**Aileana** excels at identifying and correlating  *jobs* ,  *skills* ,  *requirements* ,  *benefits* ,  *required experience* , and  *responsibilities* . Utilizing agentic workflows from state-of-the-art LLMs and Retrieval-Augmented Generation (RAG), she enhances accuracy and reliability with data sourced from recent and relevant information. The Knowledge Graph database allows the models to perform more detailed queries and deeper analysis than traditional vector embeddings in SQL databases.
 
 ---
 
-## 💬 The Story
-
-**Eleana** was nearly 18 years old, facing the critical decision of choosing her career and relevant academic studies.
-
-She had a passion for Biology  *(or at least thought she did)* , but no one in her family or circle was familiar with this field, and the job prospects were uncertain 🤔.
-
-Given my background in the health domain, she asked me if pursuing Biology was a good idea. My response was something like: " *If it is your passion, follow it.* "
-
-However, this answer was *generic* and  *insincere* , to be honest. The truth was that *I had no idea.* This led me to ponder:
-
-* Is it really good advice? Is 'liking' a subject the only criterion for choosing a field of study?
-* What are the employment prospects after graduation?
-* What related jobs are available, and what other skills are needed to qualify for these jobs?
-* What benefits do such jobs usually offer?
-
-As a data nerd 🤓, I realized the job market operates like any other market:
-
-* Supply and demand are key driving forces.
-* Higher qualifications/specializations generally lead to higher pay.
-
-Only *data* can provide answers to these questions, not anecdotal experiences.
-
-Thus,  ***Aileana*** , this project, was born.
-
-<br>
-
----
 
 ## ⚡️Tech Stack
 
@@ -175,49 +145,6 @@ Node Relationships:
 * `JOB_TITLE` |OFFERS| `BENEFITS`
 * `JOB_TITLE` |HAS| `RESPONSIBILITY`
 * `RESPONSIBILITY` |RELATES_TO| `SKILL`
-
-<br>
-
----
-
-### 🖥️ **Front End**
-
-I was intrigued by watching people build various data analysis projects with `Streamlit`, and it seemed easy enough for me. Another fun challenge was incorporating functionality for LLMs to plot charts for users based on their prompts.
-
-<br>
-Answering user queries with accuracy:
-
-The frontend LLM has knowledge of the database schema and can query the database to access nodes relevant to the user's prompt.
-
-Then the agent, with the help of RAG, can decide which nodes are most similar to the query and provide the necessary information or analysis accurately.
-
-<br>
-
----
-
-### **🧹 Data Cleaning**
-
-Since LLMs are used to extract data, sometimes they hallucinate and may not follow instructions to categorize jobs and industries based on the standards (NACE, ISCO, etc.).
-
-For this reason, I created a framework of AI agents that query specific data from the database and, using logic and reasoning, decide whether to keep or change it based on the instructions.
-
-Automated data cleaning process example:
-
-* **agent_db_analyst** : This agent queries the database for specific data (e.g., the ISCO occupation or NACE category) and rechecks if it is correct. Each decision is passed to `agent_manager`.
-* **agent_manager** : The manager can validate the result and accept the decision of the `agent_db_analyst` or inform the `agent_db_analyst` to try again.
-* **agent_validator** :
-* **agentic_rules** :
-* Each task can be repeated only three times; otherwise, it is logged, and no changes are made to the database.
-* Each standard must be passed as a variable in the prompt.
-
-Another automated data cleaning example:
-
-* **agent_db_analyst** : Selects all benefits with "GYM" as a keyword and decides if the text will be "Free Gym Membership" or "Gym in Company Premises." Each decision is passed to `agent_manager`.
-* **agent_manager** : The manager can validate the result and accept the decision of the `agent_db_analyst` or inform the `agent_db_analyst` to try again.
-* **agent_validator** :
-* **agentic_rules** : Each task can be repeated only three times; otherwise, it is logged, and no changes are made to the database.
-
-<br>
 
 ---
 
